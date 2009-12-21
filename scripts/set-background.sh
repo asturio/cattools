@@ -1,9 +1,15 @@
 #!/bin/bash
 
 # Global Variables
-DIRS="$HOME/background/uncensored/ /usr/share/pixmaps/backgrounds/ /usr/share/backgrounds/ /usr/share/xfce4/backdrops/"
+DIRS="/usr/share/pixmaps/backgrounds/ /usr/share/backgrounds/ /usr/share/xfce4/backdrops/"
 TOTAL=0
 VERBOSE=0
+
+if [ -f $HOME/.set-backgroundrc ] 
+then
+    [ $VERBOSE -eq 1 ] && echo "Readong more dirs."
+    source $HOME/.set-backgroundrc
+fi
 
 set_desktop_cmd() {
     ps -ef | grep ${USER} | while read line
@@ -58,10 +64,10 @@ do
     case $opt in
         # Add all directories
         -a|--all)
-            DIRS="$DIRS $HOME/background/adult"
+            DIRS="$DIRS $ADULT"
             ;;
         -A|--adult)
-            DIRS=$HOME/background/adult
+            DIRS=$ADULT
             ;;
         -v|--verbose)
             VERBOSE=1
@@ -75,7 +81,7 @@ for D in $DIRS
 do
     [ -d "$D" ] && DIR="$DIR $D"
 done
-[ $VERBOSE -eq 1 ] && echo "I:$DIR"
+[ $VERBOSE -eq 1 ] && echo "I: dirs='$DIR'"
 
 # Count all Images in the directories 
 for f in `find $DIR -name "*.jpg" -o -name "*.png"`
@@ -100,7 +106,7 @@ do
 done
 
 # Link wallpaper to standard file
-ln -snf $WALLPAPER $HOME/background/background.link
+ln -snf $WALLPAPER $HOME/.background.link
 
 [ $VERBOSE -eq 1 ] && echo "I:$WALLPAPER: $NUMBER of $TOTAL"
 
