@@ -624,7 +624,7 @@ mergeStream
 ##### OLD CODE
 
 # HOW TO GET SUBGTITLES:
-# mencoder -nocache -nosound -of rawaudio -ovc copy -o /dev/null -vobsubout /tmp/sub.AFV8OU -vobsuboutindex 0 -sid 0 -dvd-device /home/claudio/bigdata/claudio/dvdrip/vdr/dvdJK8As0 dvd://1
+# mencoder -nocache -nosound -of rawaudio -ovc copy -o /dev/null -vobsubout /tmp/sub.AFV8OU -vobsuboutindex 0 -sid 0 -dvd-device /opt/bigdata/claudio/dvdrip/vdr/dvdJK8As0 dvd://1
 # subp2pgm /tmp/sub.AFV8OU
 # ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0247.pgm.txt /tmp/sub.AFV8OU0247.pgm
 # processing file `/tmp/sub.AFV8OU0247.pgm'
