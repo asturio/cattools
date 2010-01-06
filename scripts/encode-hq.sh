@@ -123,6 +123,21 @@ initialize() {
     FILENAME=`echo ${NAME} | tr " 	" "__"`
     [ "$TRACKS" ] || TRACKS=`readOpt TRACKS`
     [ "$TRACKS" ] || TRACKS=0
+
+    checkbins
+}
+
+checkbins() {
+    BINS="mplayer mencoder oggenc mkvmerge mkfifo"
+    for i in $BINS
+    do
+        BLA=`which $i`
+        if [ -z "$BLA" ]
+        then
+            echo "$i not found: Please install."
+            exit
+        fi
+    done
 }
 
 usage() {
