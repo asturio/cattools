@@ -193,12 +193,14 @@ detectCrop() {
             ENDFRAME=`getEndFrame`
             MOVIEFRAMES=`echo ${ENDFRAME}-${STARTFRAME} | bc`
             MOVIESIZE=`echo ${FILESIZE}*${MOVIEFRAMES}/${TOTALFRAMES} | bc`
-            echo "Movie Frames: $MOVIEFRAMES (size $MOVIESIZE bytes)"
-            STEPS=`echo $MOVIESIZE/5 | bc`
+            # FIXME Hier ist der Fehler START UND ENDFRAME FALSCH
+            echo "Movie Frames: $MOVIEFRAMES ($STARTFRAME - $ENDFRAME) (size $MOVIESIZE bytes)"
+            STEPS=`echo $MOVIESIZE/10 | bc`
             [ "${myStartSize}" ] || myStartSize=0
-            for i in 1 2 3 4
+            while true
             do
                 myStartSize=`echo ${myStartSize}+${STEPS} | bc`
+                [ $myStartSize -gt $MOVIESIZE ] && break
                 myPositions="$myPositions $myStartSize"
             done
             echo "Checking in $myPositions"
