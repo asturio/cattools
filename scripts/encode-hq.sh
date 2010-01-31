@@ -194,13 +194,14 @@ detectCrop() {
             MOVIEFRAMES=`echo ${ENDFRAME}-${STARTFRAME} | bc`
             MOVIESIZE=`echo ${FILESIZE}*${MOVIEFRAMES}/${TOTALFRAMES} | bc`
             # FIXME Hier ist der Fehler START UND ENDFRAME FALSCH
-            echo "Movie Frames: $MOVIEFRAMES ($STARTFRAME - $ENDFRAME) (size $MOVIESIZE bytes)"
+            myStartSize=`getStartSize`
+            echo "Movie Frames: $MOVIEFRAMES ($STARTFRAME - $ENDFRAME) (size $MOVIESIZE bytes) (start: $myStartSize)"
             STEPS=`echo $MOVIESIZE/10 | bc`
-            [ "${myStartSize}" ] || myStartSize=0
+            myEndSize=`echo $myStartSize+$MOVIESIZE | bc`
             while true
             do
                 myStartSize=`echo ${myStartSize}+${STEPS} | bc`
-                [ $myStartSize -gt $MOVIESIZE ] && break
+                [ $myStartSize -gt $myEndSize ] && break
                 myPositions="$myPositions $myStartSize"
             done
             echo "Checking in $myPositions"
@@ -247,11 +248,22 @@ getStartFrame() {
     if [ "${START}" ]
     then
         # This is just a guess, and is used only to compute how many frames are to be encoded using -S and -E
-        myStartSize=`echo ${START} | cut -f 2 -d " "`
+        myStartSize=`getStartSize`
         let myRestSize=FILESIZE-myStartSize
         myStartFrame=`echo ${myRestSize}*${TOTALFRAMES}/${FILESIZE} | bc`
+        # echo "Restsize: $myRestSize" 1>&2
     fi
     echo $myStartFrame
+}
+
+getStartSize() {
+    myStartSize=0
+    if [ "${START}" ]
+    then
+        myStartSize=`echo ${START} | cut -f 2 -d " "`
+        # echo "Startsize: $myStartSize" 1>&2
+    fi
+    echo $myStartSize
 }
 
 getEndFrame() {
@@ -267,7 +279,8 @@ getEndFrame() {
         elif [ -z "$mySeconds" ] 
             then mySeconds=$myMinutes; myMinutes=$myHours; myHours=0
         fi
-        myParttime=`echo "$myHours * 60 * 60 + $myMinutes * 60 + $mySeconds" | bc`
+        # Factor of 0.80 is an approximation. VRO Files say they are longer than real
+        myParttime=`echo "($myHours * 60 * 60 + $myMinutes * 60 + $mySeconds) * 0.80" | bc`
         myEndFrame=`echo "$STARTFRAME + $myParttime * 25" | bc`
     fi
     echo $myEndFrame
