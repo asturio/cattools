@@ -1,0 +1,6 @@
+New for version 0.5.6:
+
+    Added autoconf support.
+    Added myzdiff to fix broken zdiff
+    Using now RSA instead of DSA Keys. Run dump-backup --config again to fix
+    create the new key.
