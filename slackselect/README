@@ -1,0 +1,108 @@
+How it works:
+=============
+WARNING: Take a look at README.kernel TOO.
+
+<quickreader>
+Just copy slackselect.sh to /usr/local/bin or /usr/bin and run it as root. You
+need to be root, because some files will be created in /var/cache/slackselect.
+</quickreader>
+
+You need to choose "Manage sourcelists" at least once, so slaskselect knows
+where to get the packages from. After that you can proceed with Install, Remove
+or Update packages.
+
+You can have as many CD-Sources as you want. But it is better if you only have 1
+or 2 distributions sets. Slackselect will try to guess the name of your CD, if
+it can't, please help it :). Try to use descriptive names.
+
+Now Slackselect can also have ONE (1) FTP/HTTP source. You can write there an URL
+of a Slackware Mirror. It must go to the directory, where the slackware directory
+is. I used in the time o writting the following URL:
+
+ftp://ftp.gwdg.de/pub/linux/slackware/slackware-10.1/
+
+Slackware will search for slackware, extras, testing, pasture and patches. If
+you don't want any of these directories, just delete them from the source-List,
+after the scan.
+
+Install packages will give you a list of packages you don't have installed at
+all.
+
+Remove packages will give you a list of packages you have installed. Packages
+that are not anymore in the sources are marked "obsolet".
+
+Upgrade will give you a list of packages you have installed on your system, but
+there is another version of it in the source list. It can also mean you will do
+a downgrade. The version number to the right of the list is the version of the
+installed package. A "+" before the current version, means that selecting this
+package will do an upgrade. A "-" means "downgrade". If you have a ftp-source,
+you will allways see the packages from "patches" in the upgrade list.
+
+(as of 0.4) Description now gives you the description of the package, as in the
+PACKAGES.txt. It work quite well, and will update the cache only if needed (this
+take some time, but descriptions afterwards are very fast. Faster than pkgtool.
+An "i" in the description means "installed", an "a" means "available"
+
+Facts:
+======
+(as of version 0.2. Hope it still correct :))
+packages.installed + packages.avail + packages.version = packages.all.source
+
+packages.install + packages.obsolet + packages.version =~ packages.all.installed
+
+packages.obsolet list packages, which _names_ without versions are not in
+packages.all.source
+
+slackselect is a bash script, so I can't do mirracles with it. It you know a way
+to make it faster, without porting it to {insert_your_favorite_language_here},
+please let me know.
+
+Comparing to PKGTOOL
+=====================
+
+The REMOVE PACKAGE function work like the PKGTOOL version, but it doesn't show
+the brief package description, and so it is quite faster (I wrote this stuff on
+a Pentium 75, and PKGTOOL is a pain on a such old machine). If you want speed
+use SlackSelect, if you want package descriptions use PKGTOOL.
+
+Slackselect can show you package descriptions, in its own section.
+
+PKGTOOL can install only from a directory, (current or other) or a floppy. These
+packages are all installed (each package in the directory will be installed,
+after a confirmation, even if you have exactly the same version already
+installed). There is were SlackSelect is better: First it reads many sources of
+packages, it compare all the source lists with your installed list and give you
+much flexibility here. 
+
+The INSTALL package only shows you a list of packages you DON'T have installed
+in your system, you can select all you want in one go and start the
+installation.
+
+The REMOVE package have a nice feature, better then PKGTOOL. It discover which
+packages are installed, which have no source package anymore (it can find only
+packages with the same _name_ in the list of packages in the repository list),
+and mark these as obsolete, so packages, that were removed from the oficial
+distribution, are found and marked (only in the selection list).
+
+The UPDATE packages is also a nice feature: it gives you a list of all packages
+you have installed, which have another version on the repositories, so you can
+upgrade or downgrade these.
+
+Copyright note
+==============
+ (c) 2004-2005 Claudio Clemens <asturio at gmx dot net>
+
+  This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation; either version 2, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+  details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# vim:tw=80:
