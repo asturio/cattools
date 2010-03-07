@@ -9,7 +9,7 @@
 # Almost all code outside funktions is from me (IIRC).
 #
 # (c) 2001 Some German Linux Magazine (??? - read above)
-# (c) 2001-2003 Claudio Clemens <asturio at gmx dot net>
+# (c) 2001-2010 Claudio Clemens <asturio at gmx dot net>
 
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -51,10 +51,10 @@ function getfiles () {
     if [ -z "$DIRS" ]; then
         DIRS=/
     fi
-    find $DIRS -print0 | xargs -0 ls -ldi \
+    find $DIRS -print0 | xargs -0 ls -ldi 2> /dev/null \
     | @SED@ -e "/^ *[0-9]* d[r-][w-][x-]/d" \
-    | sort
-    # for network, just insert an "$SERVER:" bevore each line
+    | sort -n
+    # for network, just insert an "$SERVER:" before each line
 }
 
 # Just a help function to the usage of difffiles
@@ -350,10 +350,10 @@ function backup () {
     # And MAKE the Backup / Pipe stderr to /dev/null
     if [ $LEVEL -gt 0 ]
     then
-            tar $TAROPTS -N "$LAST" 2> /dev/null | gzip - > $TARGET/.index-$TODAY.gz
+            tar $TAROPTS -N "$LAST" 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
     else
     # Level 0 makes a full backup
-            tar $TAROPTS 2> /dev/null | gzip - > $TARGET/.index-$TODAY.gz
+            tar $TAROPTS 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
     fi
 
     # Make sure the files are only for the user readable
