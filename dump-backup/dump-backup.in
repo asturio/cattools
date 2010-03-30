@@ -34,6 +34,7 @@ VERSION=@VERSION@
 LC_ALL=C
 CONFIGFILE=/etc/dump-backup/dump-backup.rc
 LOCKFILE=/var/lock/dump-backup.pid
+LOGFILE=/tmp/dump-backup.log
 
 # ******* Some functions
 
@@ -52,8 +53,8 @@ function getfiles () {
     if [ -z "$DIRS" ]; then
         DIRS=/
     fi
-    find $DIRS -print0 | xargs -0 ls -ldi 2> /dev/null \
-    | @SED@ -e "/^ *[0-9]* d[r-][w-][x-]/d" \
+    find $DIRS -print0 | xargs -0 ls -ldi --time-style=long-iso 2> /dev/null \
+    | @SED@ -e "/^ *[0-9]* d[r-][w-][x-]/d" -e "s/	/ /g" -e "s/   */ /g" \
     | sort -n
     # for network, just insert an "$SERVER:" before each line
 }
@@ -68,10 +69,22 @@ function diff_usage () {
 
 # zdiff in Ubuntu 7.04 doesn't work properly, so implemented this version
 function myzdiff () {
+    log "Diffing $1 $2."
     tmp1=/tmp/myzdiff1.$$
     tmp2=/tmp/myzdiff2.$$
-    zcat $1 > $tmp1 2> /dev/null
-    zcat $2 > $tmp2 2> /dev/null
+    if (file $1 | grep gzip > /dev/null)
+    then
+        zcat $1 > $tmp1 2> /dev/null
+    else
+        cp $1 $tmp1
+    fi
+
+    if (file $2 | grep gzip > /dev/null)
+    then
+        zcat $2 > $tmp2 2> /dev/null
+    else
+        cp $2 $tmp2
+    fi
     diff $tmp1 $tmp2
     rm -f $tmp1 $tmp2 > /dev/null 2>&1
 }
@@ -351,16 +364,18 @@ function backup () {
     # And MAKE the Backup / Pipe stderr to /dev/null
     if [ $LEVEL -gt 0 ]
     then
-            tar $TAROPTS -N "$LAST" 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
+        # Is always correct.
+        tar $TAROPTS -N "$LAST" 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
     else
-    # Level 0 makes a full backup
-            tar $TAROPTS 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
+        # Level 0 makes a full backup
+        tar $TAROPTS 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
     fi
 
     # Make sure the files are only for the user readable
     chmod 600 $TARGET/backup-"$TODAY".tar.gz
 
     # Delete old backups
+    log "Deleting in $TARGET files older than $TIME days"
     find $TARGET -mtime +$TIME -exec rm {} \;
 
     # Check for new, changed and deleted files
@@ -372,6 +387,10 @@ function backup () {
     do
         @LN_S@ -nf $i `echo $i | @SED@ "s/$TODAY/LATEST/"`
     done
+}
+
+function log() {
+    echo "$TODAY $THISLEVEL: $* ">> $LOGFILE
 }
 
 function mirror () {
