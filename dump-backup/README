@@ -1,8 +1,8 @@
 Author:
 =======
 Claudio Clemens
-Version: 0.5.6
-Last change: 2007-08-16
+Version: 0.5.8
+Last change: 2010-03-30
 
 Contents:
 =========
@@ -39,7 +39,7 @@ should be enough to almost everybody.
 
 So, have a nice backup.
 
-Who it works?
+How it works?
 =============
 
 It just makes a backup of level X (should be given as a line parameter), in the
