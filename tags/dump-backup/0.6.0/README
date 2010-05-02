@@ -1,0 +1,150 @@
+Author:
+=======
+Claudio Clemens
+Version: 0.5.8
+Last change: 2010-03-30
+
+Contents:
+=========
+
+ChangeLog	    The ChangeLog
+COPYING		    The GPL
+README		    This File
+dump-backup.dirs    The list of directories to backup (sample)
+dump-backup.exc     The list of filespattern to be excluded from the backup (sample)
+dump-backup.sh	    Make the backup, parameter should be the level (0-N)
+dump-backup.rc	    Config file (sample)
+
+What is an incremental backup anyway?
+======================================
+
+An "incremental backup" is a backup, which is done in levels. At the lowest
+level, you make a full backup. This is level 0 here. People should make a level
+0 backup at least once a month. In higher levels L , you just make the backup
+of files, which were changed since the last backup of level L-1. So in your
+backup of level 1 you save all your files, that were changed since your last
+backup level 0. If you make a level 0 backup once a month, your level 1 backup
+should be placed for once a week. For level 2, you can make it once a day, and
+every file changed since last the backup of last week, will be save.
+
+Restoring a backup:
+
+When you need then to restore a backup (I wish you, that never happens), you
+just need to restore your last level 0, then the last level 1 and then the last
+level 2 backup.
+
+Of course you can have more levels, if you want (maybe level 0: yearly, level
+1: monthly, level 2: weekly, level 3: daily and level 4 hourly), but 3 levels
+should be enough to almost everybody.
+
+So, have a nice backup.
+
+How it works?
+=============
+
+It just makes a backup of level X (should be given as a line parameter), in the
+directory indicated in /etc/dump-backup.rc and backups all directories listed
+in /etc/dump-backup.dirs.
+
+It creates per backup following files in the respective levelX directory:
+
+backup-DATE	    - The Backup files
+.index-DATE	    - The index of the archive backup-DATE
+.files-DATE	    - The files in the directories at backup time
+.changed-DATE	    - The files changed since the last Backup of LEVEL-1
+.deleted-DATE	    - The files deleted since the last Backup of LEVEL-1
+.new-DATE	    - The newer files since the last Backup of LEVEL-1
+
+Installation:
+==============
+Automagic Installation:
+-----------------------
+Just run the script as root like:
+./dump-backup.sh --config
+and follow the instruction.
+
+You still have to make steps 6-9 of the manual installation
+
+Manual Installation:
+--------------------
+1. Create your backup directory (e.g. /usr/local/backup), this is the place
+    were the backup files are placed;
+   
+   mkdir /usr/local/backup
+   
+2. Install the shell script "dump-backup.sh" in a bin directory (e.g.
+    /usr/local/bin)
+
+    cp dump-backup.sh /usr/local/bin
+    
+3. Copy the configuration files to the /etc/dump-backup (create it first)
+    directory:
+
+    cp dump-backup.rc dump-backup.dirs dump-backup.exc /etc/dump-backup
+    
+4. Modify the file dump-backup.rc and set the variables BACKUPDIR to what you
+    put in (1.) and LEVELTIMES accordingly to your needs; LEVELTIMES tells how
+    long is a file to be kept for backup level 0, 1, 2,...
+
+5. Write in /etc/dump-backup.dirs the list of directories that you want to
+    backup, at best one per line;
+
+6. Make a level 0 backup with "dump-backup.sh 0"
+
+7. Make a level 1 backup with "dump-backup.sh 1"
+
+8. Make a level 2 backup with "dump-backup.sh 2"
+
+9. Configure cron to make one backup of level 0, 1, and 2 once a month, a week,
+    a day (respectively). Normally you just need to place a little script in
+    /etc/cron.{daily,monthly,weekly}
+
+Possible cron-script:
+=====================
+#!/bin/sh
+/usr/local/bin/dump-backup.sh 0
+#                             ^-> Change this value to the 0 in monthly,
+#                                                          1 in weekly,
+#                                                          2 in daily
+
+Credits:
+========
+Claudio Clemens <asturio at gmx dot net>
+
+I have some code from (I think) the German magazine "Linux User", but I'm not
+sure of it, because I've lost the magazine. So if you know were the "difffiles"
+and "getfiles" script were first published, tell me, so I can put the right
+information here. It is also possible, that the magazine was "Linux Magazine"
+or "c't".
+
+    dump-backup - creates incremental backups
+    Copyright (C) 1998-2003 Claudio Clemens <asturio at gmx dot net>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+    USA.
+
+    The complete text of the GNU General Public License can be found in
+    `COPYING'.
+
+TODO:
+=====
+Make install with cron support (maybe install something in
+/etc/cron.{daily,weekly,monthly})
+
+BUGS:
+=====
+If you find any bug, please contact me, or if you have any suggestion too.
+Patches are also welcome.
+# :vim:tw=75:

@@ -1,0 +1,475 @@
+#!/bin/bash
+#
+# Some code of this program were first printed in one of the following
+# magazines: "c't", "Linux Magazin" or "Linux User", in the year 2001. In
+# which of these it appeared I don't know. Because I lost the magazine I'm
+# not sure. So if you know more about it let me know because I'm not
+# willing to break any copyright here. I think the part of getfiles and
+# difffiles are almost as the original were (these are from the magazine).
+# Almost all code outside funktions is from me (IIRC).
+#
+# (c) 2001 Some German Linux Magazine (??? - read above)
+# (c) 2001-2010 Claudio Clemens <asturio at gmx dot net>
+
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2, or (at your option) any later version.
+ 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+  
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please read the README file
+#
+# Variables: VERSION, TODAY, DIRLIST (from config), BACKUPDIR, DIRS, LEVEL,
+# LEVELTIMES (from config), TIME, TARGET, OLDTARGET, LAST, LASTFILES
+
+### ********* Don't modify from this point on ***********
+VERSION=@VERSION@
+LC_ALL=C
+CONFIGFILE=/etc/dump-backup/dump-backup.rc
+LOCKFILE=/var/lock/dump-backup.pid
+LOGFILE=/tmp/dump-backup.log
+
+# ******* Some functions
+
+# Get the date for today
+TODAY=`date -I`
+
+# Get the list of all files of the backups dirs
+function getfiles () {
+    if [ -f "$DIRLIST" ] 
+    then
+        DIRS=`cat $DIRLIST`
+    else
+        echo "$0: Warning... no Directory list found, listing the whole system!"
+    fi
+    # If there is no configuration list the whole system
+    if [ -z "$DIRS" ]; then
+        DIRS=/
+    fi
+    find $DIRS -print0 | xargs -0 ls -ldi --time-style=long-iso 2> /dev/null \
+    | @SED@ -e "/^ *[0-9]* d[r-][w-][x-]/d" -e "s/	/ /g" -e "s/   */ /g" \
+    | sort -n
+    # for network, just insert an "$SERVER:" before each line
+}
+
+# Just a help function to the usage of difffiles
+function diff_usage () {
+    echo Error $1
+    echo
+    echo Usage: $0 List1 List2
+    exit 1
+}
+
+# zdiff in Ubuntu 7.04 doesn't work properly, so implemented this version
+function myzdiff () {
+    log "Diffing $1 $2."
+    tmp1=/tmp/myzdiff1.$$
+    tmp2=/tmp/myzdiff2.$$
+    if (file $1 | grep gzip > /dev/null)
+    then
+        zcat $1 > $tmp1 2> /dev/null
+    else
+        cp $1 $tmp1
+    fi
+
+    if (file $2 | grep gzip > /dev/null)
+    then
+        zcat $2 > $tmp2 2> /dev/null
+    else
+        cp $2 $tmp2
+    fi
+    diff $tmp1 $tmp2
+    rm -f $tmp1 $tmp2 > /dev/null 2>&1
+}
+
+# This function generates the files "deleted", "new", "changed" from 2 file lists.
+function difffiles () {
+    if [ $# -ne 2 ]
+    then
+        diff_usage "False Parameters"
+    fi
+
+    TMP=/tmp/$$.diff
+    # don't diff if it is the same file
+    if [ $1 = $2 ]
+    then
+        #echo "Nothing to diff."
+        return 1
+    fi
+    
+    # Generate the diff
+    if [ $1 -nt $2 ]
+    then
+        myzdiff $2 $1
+    else
+        myzdiff $1 $2
+    fi \
+    | @GREP@ "^[<>]" \
+    | @SED@ "s/\([<>]\)[^\/]*\//\1 \//" \
+    | sort -k 1 \
+    | uniq -f 1 -c > $TMP
+
+    # This was the original version... usefull if you make the backup on the net
+    #| @SED@ "s/\([<>] *[a-z0-9][a-z0-9]*:\)[^\/]*\//\1\//" \
+    #| uniq -f 1 -c > $TMP
+
+    @SED@ -n "/      1[	 ]< / {
+            s/      1[	 ]< //
+            p
+            }
+            " $TMP | gzip - > .deleted-"$TODAY".gz
+    #   s/ -> .*$//
+    @SED@ -n "/      1[	 ]> /{
+            s/      1[	 ]> //
+            p
+            }
+            " $TMP | gzip - > .new-"$TODAY".gz
+    #   s/ -> .*$//
+    @SED@ -n "/      2[	 ][<>] /{
+            s/      2[	 ][<>] //
+            p
+            }
+            " $TMP | gzip - > .changed-"$TODAY".gz
+    #s/ -> .*$//
+    rm $TMP
+}
+
+function usage () {
+        echo 
+        echo "Please give which dump level you want."
+        echo 
+        echo "Usage:"
+        echo "   dump-backup.sh <dump-level>            Make a \"dump-level\" backup"
+        echo "   dump-backup.sh --config                Config dump-backup"
+        echo "   dump-backup.sh --restore               Restore a backup"
+        echo "   dump-backup.sh --mirror-restore        Restore a backup from mirror"
+        echo "   dump-backup.sh --mirror                Only Mirror"
+}
+
+function copyleft () {
+        echo "dump-backup Version: $VERSION - (c) Claudio Clemens"
+        echo "dump-backup comes with ABSOLUTELY NO WARRANTY; for details"
+        echo "see the file COPYING.  This is free software, and you are welcome"
+        echo "to redistribute it under certain conditions."
+}
+
+function configure_mirror() {
+    # Generate emptypassfrase key
+    if [ ! -f $HOME/.ssh/id_rsa_$MIRRORUSER ]
+    then
+        echo "I'm going to generate the data for mirroring. You will need"
+        echo "to enter password at most 3 times"
+        # Login as user and make sure .ssh exists
+        ssh $MIRRORUSER@$MIRRORHOST "[ -d .ssh ] || mkdir .ssh"
+        # Generate key
+        ssh-keygen -t rsa -N "" -f $HOME/.ssh/id_rsa_$MIRRORUSER
+        # Copy key
+        scp $HOME/.ssh/id_rsa_$MIRRORUSER.pub $MIRRORUSER@$MIRRORHOST:.ssh
+        # Install key
+        ssh $MIRRORUSER@$MIRRORHOST "cat .ssh/id_rsa_$MIRRORUSER.pub >> .ssh/authorized_keys"
+        echo "All installed. Testing the account. You shouldn't be prompted for a password"
+        ssh $MIRRORUSER@$MIRRORHOST exit 4
+        [ $? -eq 4 ] || echo "It doesn't seem to be ok."
+        echo "Creating mirror dir"
+        ssh $MIRRORUSER@$MIRRORHOST "[ -d $MIRRORDIR ] || mkdir -p $MIRRORDIR"
+    fi
+    # Key is there, nothing to do
+}
+
+function configure () {
+    [ -d /etc/dump-backup ] || mkdir /etc/dump-backup
+    if [ -f $CONFIGFILE ] 
+    then 
+        . $CONFIGFILE
+    fi
+    echo "Where do you want me to place the backups? [$BACKUPDIR]"
+    read a && [ "$a" ] && BACKUPDIR="$a"
+    [ "$BACKUPUSER" ] || BACKUPUSER=$USER
+    echo "Which user is making the backups? [$BACKUPUSER]"
+    read a && [ "$a" ] && BACKUPUSER="$a"
+    echo "What should be the last backup LEVEL?"
+    read a && [ "$a" ] && LASTLEVEL="$a"
+    [ "$LEVELTIMES" ] || LEVELTIMES="35 31 8 1"
+    echo "Please enter how long the backups are to be keeped. First
+    value is for Level 0, than level 1... [$LEVELTIMES]"
+    read a && [ "$a" ] && LEVELTIMES="$a"
+    [ "$DIRLIST" ] || DIRLIST="/etc/dump-backup/dump-backup.dirs"
+    echo "In which file are you going to place the 
+    Directory List [$DIRLIST]:"
+    read a && [ "$a" ] && DIRLIST="$a"
+    [ "$EXCLUDES" ] || EXCLUDES="/etc/dump-backup/dump-backup.exc"
+    echo "In which file are you going to place the list of files that 
+    are to be excluded from the backup [$EXCLUDES]:"
+    read a && [ "$a" ] && EXCLUDES="$a"
+    echo "To which host do you want to mirror the backup [$MIRRORHOST]:"
+    read a && [ "$a" ] && MIRRORHOST="$a"
+    echo "To which directory in the mirror host [$MIRRORDIR]:"
+    read a && [ "$a" ] && MIRRORDIR="$a"
+    echo "Which mirror user (he must exist) [$MIRRORUSER]:"
+    read a && [ "$a" ] && MIRRORUSER="$a"
+
+    [ "$MIRRORUSER" -a "$MIRRORHOST" -a "$MIRRORDIR" ] && configure_mirror
+
+    echo "Please enter the names of the directories you want to backup (use full-path names, one per line, an empty line stops):"
+    if [ -s "$DIRLIST" ]
+    then
+        echo "Actuall content is:"
+        cat $DIRLIST
+    fi
+    while read a
+    do
+        [ "$a" ] || break
+        echo "$a"
+    done > /tmp/dump-backup.dirs.$$
+    [ -s /tmp/dump-backup.dirs.$$ ] && mv /tmp/dump-backup.dirs.$$ $DIRLIST
+    
+
+    if [ "$EXCLUDES" ]
+    then
+        echo "Please enter the pattern for files to don't backup (Use * and ?, not Regex):"
+        if [ -s $EXCLUDES ]
+        then
+            echo "Actuall content is:"
+            cat $EXCLUDES
+        fi
+        while read a
+        do
+            [ "$a" ] || break
+            echo "$a"
+        done > /tmp/dump-backup.excl.$$
+        [ -s /tmp/dump-backup.excl.$$ ] && mv /tmp/dump-backup.excl.$$ $EXCLUDES
+    fi
+    
+    echo "# Configuration generated by dump-backup $VERSION on `date`" > $CONFIGFILE
+    echo "# This is where the Backupfiles should go. Place the script and backups.dirs here too" >> $CONFIGFILE
+    echo "export BACKUPDIR=$BACKUPDIR" >> $CONFIGFILE
+    echo "# Backup user" >> $CONFIGFILE
+    echo "export BACKUPUSER=$BACKUPUSER" >> $CONFIGFILE
+    echo "# Last backup level" >> $CONFIGFILE
+    echo "export LASTLEVEL=$LASTLEVEL" >> $CONFIGFILE
+    echo "# Define the time (days) to keep old files for level 0 1 2..." >> $CONFIGFILE
+    echo "export LEVELTIMES=\"$LEVELTIMES\"" >> $CONFIGFILE
+    echo "# Where is the dir list" >> $CONFIGFILE
+    echo "export DIRLIST=$DIRLIST" >> $CONFIGFILE
+    echo "# Which files should be excluded (list-location)" >> $CONFIGFILE
+    echo "export EXCLUDES=$EXCLUDES" >> $CONFIGFILE
+    echo "# Host to Mirror LATEST files to" >> $CONFIGFILE
+    echo "export MIRRORHOST=$MIRRORHOST" >> $CONFIGFILE
+    echo "# Directory in the Mirror" >> $CONFIGFILE
+    echo "export MIRRORDIR=$MIRRORDIR" >> $CONFIGFILE
+    echo "# User for the Mirror" >> $CONFIGFILE
+    echo "export MIRRORUSER=$MIRRORUSER" >> $CONFIGFILE
+}
+
+function parse_opts () {
+    if [ $# -eq 0 ]
+    then
+        copyleft
+        usage
+        exit 1
+    fi
+    case "$1" in
+    --mirror)
+        mirror
+        exit 0
+        ;;
+    --config)
+        configure
+        exit 0
+        ;;
+    --restore)
+        copyleft
+        echo 
+        echo "Function not implemented"
+        echo 
+        exit 0
+        ;;
+    --mirror-restore)
+        copyleft
+        echo 
+        echo "Function not implemented"
+        echo 
+        exit 0
+        ;;
+    [0-9]*)
+        REST=`echo $1 | tr -d [0-9]`
+        if [ "$REST" ]
+        then
+            usage
+            echo ERROR: Level must be an integer
+            exit 1
+        fi
+        ;;
+    *)
+        copyleft
+        usage
+        echo ERROR: Unknown option
+        exit 1
+        ;;
+    esac
+}
+
+function backup () {
+    TAROPTS="--exclude /dev/log --exclude *.slave-socket -P"
+    # Set actual level
+    LEVEL=$1
+    c=0
+    for i in $LEVELTIMES
+    do
+        TIME=$i
+        [ "$c" == "$LEVEL" ] && break
+        let c=c+1
+    done
+    shift
+
+    # Create dir if don't exist
+    TARGET=$BACKUPDIR/level$LEVEL
+    if [ ! -d "$TARGET" ] 
+    then 
+        mkdir -p "$TARGET" # -p added again
+        chmod 700 "$TARGET"
+    fi
+
+    # Get the date of last backup of level LEVEL-1
+    if [ $LEVEL -gt 0 ]
+    then
+        let PRED=LEVEL-1
+        OLDTARGET=$BACKUPDIR/level$PRED
+        [ -d $OLDTARGET ] || OLDTARGET=$TARGET
+    else
+        OLDTARGET=$TARGET
+    fi
+
+    if [ -f $OLDTARGET/LAST ]
+    then
+        LAST=`cat $OLDTARGET/LAST`
+    fi
+
+    # Get the name of the last file-list
+    LASTFILES=.files-`date -I -d "$LAST"`.gz
+
+    # Write the date of this backup
+    date +"%F %T" > $TARGET/LAST
+
+    # Get the list of files
+    getfiles | gzip - > $TARGET/.files-"$TODAY".gz 
+
+    # Set TAROPTS
+    [ "$DIRLIST" ] && TAROPTS="$TAROPTS -T $DIRLIST" || TAROPTS="/ $TAROPTS"
+    [ "$EXCLUDES" ] && TAROPTS="$TAROPTS -X $EXCLUDES"
+    TAROPTS="cvzf $TARGET/backup-"$TODAY".tar.gz $TAROPTS"
+
+    # And MAKE the Backup / Pipe stderr to /dev/null
+    if [ $LEVEL -gt 0 ]
+    then
+        # Is always correct.
+        tar $TAROPTS -N "$LAST" 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
+    else
+        # Level 0 makes a full backup
+        tar $TAROPTS 2> /dev/null | sort | gzip - > $TARGET/.index-$TODAY.gz
+    fi
+
+    # Make sure the files are only for the user readable
+    chmod 600 $TARGET/backup-"$TODAY".tar.gz
+
+    # Delete old backups
+    log "Deleting in $TARGET files older than $TIME days"
+    find $TARGET -mtime +$TIME -exec rm {} \;
+
+    # Check for new, changed and deleted files
+    cd $TARGET
+    difffiles $OLDTARGET/$LASTFILES $TARGET/.files-"$TODAY".gz
+
+    # Link for the latest backup (so we can rsync it better)
+    for i in $TARGET/*$TODAY* $TARGET/.*$TODAY*
+    do
+        @LN_S@ -nf $i `echo $i | @SED@ "s/$TODAY/LATEST/"`
+    done
+}
+
+function log() {
+    echo "$TODAY $THISLEVEL: $* ">> $LOGFILE
+}
+
+function mirror () {
+    # Mirror to the Mirror host
+    if [ "$MIRRORHOST" -a "$MIRRORDIR" -a "$MIRRORUSER" ]
+    then
+        if (ping -c 1 $MIRRORHOST > /dev/null)
+        then
+            # echo Mirror to $MIRRORHOST:$MIRRORDIR
+            rsync -La --exclude "*[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*" \
+            -e "ssh -i $HOME/.ssh/id_rsa_$MIRRORUSER" $BACKUPDIR/. \
+            $MIRRORUSER@$MIRRORHOST:$MIRRORDIR
+            rc=$?
+            if [ $rc -eq 0 ]
+            then
+                touch $BACKUPDIR/last-rsync
+            fi
+        fi
+    fi
+}
+
+# Don't run more than once at the same time (this is not healthy)
+function lock() {
+    [ -f "$LOCKFILE" ] || echo $$ > "$LOCKFILE"
+    if (! grep $$ "$LOCKFILE" > /dev/null)
+    then
+        # echo -n "."
+        return 1
+    fi
+    # echo " Got lock. ($THISLEVEL) `date`."
+    return 0
+}
+
+function unlock() {
+    if (grep $$ "$LOCKFILE" > /dev/null)
+    then
+        rm "$LOCKFILE"
+    fi
+}
+
+####################################
+# Now do the job: The Main Program #
+####################################
+
+THISLEVEL=$1
+# Read config file
+if [ -f $CONFIGFILE ] 
+then 
+    . $CONFIGFILE
+else
+    echo "$0: No config file found... configuring now."
+    $0 --config
+    exit 0
+fi
+
+# Cron doesn't know HOME if run from cron.daily
+HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
+
+parse_opts $*
+
+# Wait for lock
+while (! lock)
+do
+    let SLEEP=`echo "($THISLEVEL+1)*2;" | bc`
+    sleep $SLEEP
+done
+
+while [ $THISLEVEL -le $LASTLEVEL ]
+do
+    #echo "Backing up level $THISLEVEL from $LASTLEVEL"
+    backup $THISLEVEL
+    let THISLEVEL=THISLEVEL+1
+done
+
+mirror
+
+unlock
