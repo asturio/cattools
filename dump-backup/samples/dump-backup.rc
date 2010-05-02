@@ -1,0 +1,8 @@
+# This is where the Backupfiles should go. Place the script and backups.dirs here too 
+export BACKUPDIR=/usr/local/backup
+# Define the time (days) to keep old files for level 0 1 2...
+export LEVELTIMES="35 31 8 1"
+# Where is the dir list
+export DIRLIST=/etc/dump-backup/dump-backup.dirs
+# Which files should be excluded (list-location)
+export EXCLUDES=/etc/dump-backup/dump-backup.exc
