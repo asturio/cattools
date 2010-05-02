@@ -150,6 +150,7 @@ function usage () {
         echo "   dump-backup.sh --config                Config dump-backup"
         echo "   dump-backup.sh --restore               Restore a backup"
         echo "   dump-backup.sh --mirror-restore        Restore a backup from mirror"
+        echo "   dump-backup.sh --mirror                Only Mirror"
 }
 
 function copyleft () {
@@ -275,6 +276,10 @@ function parse_opts () {
         exit 1
     fi
     case "$1" in
+    --mirror)
+        mirror
+        exit 0
+        ;;
     --config)
         configure
         exit 0
@@ -436,11 +441,6 @@ function unlock() {
 ####################################
 
 THISLEVEL=$1
-# Cron doesn't know HOME if run from cron.daily
-HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
-
-parse_opts $*
-
 # Read config file
 if [ -f $CONFIGFILE ] 
 then 
@@ -450,6 +450,11 @@ else
     $0 --config
     exit 0
 fi
+
+# Cron doesn't know HOME if run from cron.daily
+HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
+
+parse_opts $*
 
 # Wait for lock
 while (! lock)
