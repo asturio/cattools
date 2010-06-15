@@ -316,24 +316,26 @@ encodeAudio() {
             echo "Audio $OUTPUT present, skiping encoding."
         else
             echo "Encoding Audio track $track."
-            # First detect audio format:
             [ "$track" -ne "0" ] && AID="-aid $track"
-            echo " Detecting Audio format"
-            # XXX Use identify
-            AUDIOLINE=`mplayer -vo null -ao null -frames 2 ${AID} ${INPUT} 2> /dev/null | grep AUDIO`
-            ABITRATE=`echo $AUDIOLINE | awk '{print $2}'`
-            ACHANNELS=`echo $AUDIOLINE | awk '{print $4}'`
-            echo " Audio is ${ABITRATE} Hz and ${ACHANNELS} Channels."
+
+            # First detect audio format:
+            # echo " Detecting Audio format"
+            # Not needed anymore. Dumpfile als normal Wave (WITH header), so oggenc can detect the format
+            # AUDIOLINE=`mplayer -vo null -ao null -frames 2 ${AID} ${INPUT} 2> /dev/null | grep AUDIO`
+            # ABITRATE=`echo $AUDIOLINE | awk '{print $2}'`
+            # ACHANNELS=`echo $AUDIOLINE | awk '{print $4}'`
+            # echo " Audio is ${ABITRATE} Hz and ${ACHANNELS} Channels."
 
             echo    "mkfifo ${FIFO}" >> $COMMANDS
             ${DEBUG} mkfifo ${FIFO}
 
-            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:nowaveheader:file=${FIFO} ${START} ${END} ${INPUT}" >> $COMMANDS
-            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:nowaveheader:file=${FIFO} ${START} ${END} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
+            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${START} ${END} ${INPUT}" >> $COMMANDS
+            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${START} ${END} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
 
             # Explanation:
             # Input is -r(aw), -R(aw rate is) 48000 bits, Encode with -q(uality) 3, using 2 -C(hannels)
-            OGGENCOPTS="-r -R ${ABITRATE} -q 3 -C ${ACHANNELS} "
+            # OGGENCOPTS="-r -R ${ABITRATE} -q 3 -C ${ACHANNELS} "
+            OGGENCOPTS="-q 3"
             echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> $COMMANDS
             ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${OGGENCLOG} 2>&1
             [ $? -eq 0 ] && writeOpt $OUTPUT "Done"
@@ -452,7 +454,7 @@ encodeVideo() {
     [ -z "$PASSLOG" ] && PASSLOG=$WORKDIR/passlog.$$.txt && writeOpt PASSLOG "$PASSLOG"
     # Explanation: {{{
     # subq=5 = good quality subpel. encode a bit faster
-    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion
+    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion (CHANGED in new mplayer)
     # weight_b = use weighted B-Frames
     # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
     # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
@@ -462,7 +464,7 @@ encodeVideo() {
     # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
     # bitrate=${BITRATE} = the target video bitrate
     # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
-    X264OPTS="subq=5:b_pyramid:weight_b:8x8dct:frameref=2:mixed_refs:partitions=p8x8,b8x8,i8x8,i4x4:trellis=1"
+    X264OPTS="subq=5:weight_b:8x8dct:frameref=2:mixed_refs:partitions=p8x8,b8x8,i8x8,i4x4:trellis=1"
     X264OPTS="$X264OPTS:bframes=2:bitrate=${BITRATE}:direct_pred=auto"
 
     # Explanation: {{{
