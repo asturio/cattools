@@ -441,6 +441,12 @@ function unlock() {
 ####################################
 
 THISLEVEL=$1
+
+# Cron doesn't know HOME if run from cron.daily
+HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
+
+parse_opts $*
+
 # Read config file
 if [ -f $CONFIGFILE ] 
 then 
@@ -450,11 +456,6 @@ else
     $0 --config
     exit 0
 fi
-
-# Cron doesn't know HOME if run from cron.daily
-HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
-
-parse_opts $*
 
 # Wait for lock
 while (! lock)
