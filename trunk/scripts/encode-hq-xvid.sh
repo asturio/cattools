@@ -23,6 +23,16 @@
 
 # Another method for ripping audio:
 # mplayer ${RIPPATH}movie.vob -aid ${AID} -dumpaudio -dumpfile ${RIPPATH}audio${AID}.ac3
+# HOW TO GET SUBGTITLES:
+# mencoder -nocache -nosound -of rawaudio -ovc copy -o /dev/null -vobsubout /tmp/sub.AFV8OU -vobsuboutindex 0 -sid 0 -dvd-device /opt/bigdata/claudio/dvdrip/vdr/dvdJK8As0 dvd://1
+# subp2pgm /tmp/sub.AFV8OU
+# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0247.pgm.txt /tmp/sub.AFV8OU0247.pgm
+# processing file `/tmp/sub.AFV8OU0247.pgm'
+# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0049.pgm.txt /tmp/sub.AFV8OU0049.pgm
+# processing file `/tmp/sub.AFV8OU0049.pgm'
+# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0440.pgm.txt /tmp/sub.AFV8OU0440.pgm
+# processing file `/tmp/sub.AFV8OU0440.pgm'
+
 
 # Uncomment this do just echo the commands
 #DEBUG=echo
@@ -31,13 +41,16 @@
 
 # }}}
 export LANG=C
-export VIDEOCODEC=xvid
+export CONTAINER=avi
+export QUANTIZER=3
+
+# New select if container is mkv (h264+ogg) or avi (xvid+mp3)
 
 #set -x
 
 parseOpts() {
     ### parse options
-    args=`getopt -n encode-hq.sh -o i:b:s:x:t:S:E:z:a:d:D:T:IRh -- "$@"`
+    args=`getopt -n encode-hq.sh -o i:x:t:a:d:D:T:q:c:IRh -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
@@ -50,40 +63,30 @@ parseOpts() {
     while [ "$1" ]
     do
         case "$1" in
-        "-a") TRACKS="$TRACKS $2"; shift # Audio Tracks
+        "-i") INPUT=$2; shift # Input file NEEDED
+              CONFIG=`basename ${INPUT}`.conf
             ;;
-        "-b") BITRATE=$2; shift; # Video Bitrate 
-            unset TARGETSIZE; 
-            writeOpt TARGETSIZE
+        "-x") CROP=$2; shift # Crop
+            ;;
+        "-t") NAME=$2; shift # Title
+            ;;
+        "-a") TRACKS="$TRACKS $2"; shift # Audio Tracks
             ;;
         "-d") DVD="-dvd-device $2"; shift
             ;;
         "-D") DELAY="$2"; shift
             ;;
-        "-E") END="-endpos $2"; shift # End
+        "-T") DVDTITLE=$2; shift # Title
             ;;
-        "-h") usage
+        "-q") QUANTIZER=$2; shift # Quantizer
             ;;
-        "-i") INPUT=$2; shift # Input file NEEDED
-              CONFIG=`basename ${INPUT}`.conf
+        "-c") CONTAINER=$2; shift # Container
             ;;
         "-I") getDVDInfos
             ;;
-        "-s") TARGETSIZE=$2; shift # File Size
-              unset BITRATE;
-              writeOpt BITRATE;
-            ;;
-        "-S") START="-ss $2"; shift # Start
-            ;;
         "-R") rippDVD
             ;;
-        "-t") NAME=$2; shift # Title
-            ;;
-        "-T") DVDTITLE=$2; shift # Title
-            ;;
-        "-x") CROP=$2; shift # Crop
-            ;;
-        "-z") SCALE=$2; shift # Scale
+        "-h") usage
             ;;
         esac
         shift
@@ -93,9 +96,6 @@ parseOpts() {
 
     [ "$NAME" ] && writeOpt NAME "$NAME"
     [ "$CROP" ] && writeOpt CROP "$CROP"
-    [ "$SCALE" ] && writeOpt SCALE "$SCALE"
-    [ "$TARGETSIZE" ] && writeOpt TARGETSIZE "$TARGETSIZE"
-    [ "$BITRATE" ] && writeOpt BITRATE "$BITRATE"
     [ "$TRACKS" ] && writeOpt TRACKS "$TRACKS"
 }
 
@@ -110,20 +110,16 @@ initialize() {
 
     [ -d $LOGDIR ] || mkdir -p $LOGDIR
     IDENTIFY=$LOGDIR/00-identify.txt
-    # FRAMESLOG=$LOGDIR/01-framescount.log
-    CROPLOG=$LOGDIR/02-cropdetect.log
-    MPLAYERAUDIOLOG=$LOGDIR/03-mplayer-audio.log
-    OGGENCLOG=$LOGDIR/04-oggenc.log
-    SCALELOG=$LOGDIR/05-scale.log
-    PASS1LOG=$LOGDIR/06-1pass.log
-    PASS2LOG=$LOGDIR/07-2pass.log
-    MERGELOG=$LOGDIR/08-merge.log
+    CROPLOG=$LOGDIR/01-cropdetect.log
+    MPLAYERAUDIOLOG=$LOGDIR/02-mplayer-audio.log
+    AUDIOENCLOG=$LOGDIR/03-audioenc.log
+    SCALELOG=$LOGDIR/04-scale.log
+    VIDEOLOG=$LOGDIR/05-video.log
+    MERGELOG=$LOGDIR/06-merge.log
     COMMANDS=$LOGDIR/commands.txt
 
     [ "$NAME" ] || NAME=`readOpt NAME`
     [ "$NAME" ] || NAME=$INPUT
-    [ "$TARGETSIZE" ] || TARGETSIZE=`readOpt TARGETSIZE`
-    [ "$TARGETSIZE" ] || TARGETSIZE=700
     FILENAME=`echo ${NAME} | tr " 	" "__"`
     [ "$TRACKS" ] || TRACKS=`readOpt TRACKS`
     [ "$TRACKS" ] || TRACKS=0
@@ -132,7 +128,7 @@ initialize() {
 }
 
 checkbins() {
-    BINS="mplayer mencoder oggenc mkvmerge mkfifo"
+    BINS="mplayer mencoder oggenc mkvmerge mkfifo avibox lame"
     for i in $BINS
     do
         BIN=`which $i`
@@ -150,12 +146,7 @@ usage() {
     Ex.: $0 -i VR_MOVIE.VRO -S 260000 -E 2:00:40 -s 700 -t \"Movie Name\"
     -i <input-file> - The file to encode. MANDATORY.
     -t <name>       - The name of the Movie.
-    -s <targetsize> - The wished filesize. Don't use with -b
-    -b <bitrate>    - The wished bitrate. Don't use with -s
-    -S <start>      - The Starting Byte for beginning the encoding.
-    -E <end>        - The Ending Time of the encoding.
     -x <crop>       - Crop with xxx:yyy:aa:bb. If not given, than autocrop.
-    -z <scale>      - Scale with WxH. If empty, than autoscale 
     -a <audio id>   - The id of the audio track to encode, multiple -a
                       are allowed. The order will be preserved
     -D <delay>      - Audio Delay to use
@@ -210,31 +201,7 @@ detectCropByTime() {
     # echo "Checking in $myPositions"
     echo "Deteting CROP"
     rm -f ${CROPLOG}
-    mplayer ${MPLAYERCROP} -sstep ${STEPS} ${START} ${INPUT} ${DEBUG2} >> ${CROPLOG} 2>&1
-    # {{{
-    #for STEP in $myPositions
-    #do
-    #    echo "mplayer ${MPLAYERCROP} -ss $STEP ${INPUT} ${DEBUG2}" >> ${CROPLOG} 
-    #    mplayer ${MPLAYERCROP} -ss $STEP ${INPUT} ${DEBUG2} >> ${CROPLOG} 2>&1
-    #done
-    
-    # CROPS=`grep "crop=" ${CROPLOG} | cut -f 2 -d= | cut -f1 -d")"`
-    # x=0
-    # y=0
-    # dx=10240
-    # dy=10240
-    # for myCROP in $CROPS
-    # do
-    #     myX=`echo "$myCROP" | cut -f 1 -d ":"`
-    #     myY=`echo "$myCROP" | cut -f 2 -d ":"`
-    #     myDX=`echo "$myCROP" | cut -f 3 -d ":"`
-    #     myDY=`echo "$myCROP" | cut -f 4 -d ":"`
-    #     [ $myX -gt $x ] && x=$myX
-    #     [ $myY -gt $y ] && y=$myY
-    #     [ $myDX -lt $dx ] && dx=$myDX
-    #     [ $myDY -lt $dy ] && dy=$myDY
-    # done
-    # }}}
+    mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT} ${DEBUG2} >> ${CROPLOG} 2>&1
     CROP=`grep "crop=" ${CROPLOG} | tail -1 | cut -f2 -d= | cut -f1 -d")"`
     x=`echo $CROP | cut -f 1 -d:`
     y=`echo $CROP | cut -f 2 -d:`
@@ -252,7 +219,6 @@ detectCrop() {
     # Since 4.4.3 not working with -sb Startbyte     GRRRRRRRrrrr
     MPLAYERCROP="-nolirc -vo null -nosound -nocache -vf cropdetect -frames 12 -speed 100"
     [ -z "${CROP}" ] && CROP=`readOpt CROP`
-    # [ -z "${CROP}" ] && detectCropBySize
     [ -z "${CROP}" ] && detectCropByTime
 
     if [ -z "$CROP" ]
@@ -264,49 +230,6 @@ detectCrop() {
         exit 1
     fi
     echo " Cropping to ${CROP}"
-}
-
-getStartFrame() {
-    myStartFrame=1
-    if [ "${START}" ]
-    then
-        # This is just a guess, and is used only to compute how many frames are to be encoded using -S and -E
-        myStartSize=`getStartSize`
-        let myRestSize=FILESIZE-myStartSize
-        myStartFrame=`echo ${myRestSize}*${TOTALFRAMES}/${FILESIZE} | bc`
-        # echo "Restsize: $myRestSize" 1>&2
-    fi
-    echo $myStartFrame
-}
-
-getStartSize() {
-    myStartSize=0
-    if [ "${START}" ]
-    then
-        myStartSize=`echo ${START} | cut -f 2 -d " "`
-        # echo "Startsize: $myStartSize" 1>&2
-    fi
-    echo $myStartSize
-}
-
-getEndFrame() {
-    myEndFrame=`readOpt TOTALFRAMES`
-    if [ "${END}" ]
-    then
-        myTime=`echo "${END}:" | cut -f 2 -d " "`
-        myHours=`echo $myTime | cut -f 1 -d :`
-        myMinutes=`echo $myTime | cut -f 2 -d :`
-        mySeconds=`echo $myTime | cut -f 3 -d :`
-        if [ -z "$myMinutes" -a -z "$mySeconds" ] 
-            then mySeconds=$myHours; myMinutes=0; myHours=0
-        elif [ -z "$mySeconds" ] 
-            then mySeconds=$myMinutes; myMinutes=$myHours; myHours=0
-        fi
-        # Factor of 0.80 is an approximation. VRO Files say they are longer than real
-        myParttime=`echo "($myHours * 60 * 60 + $myMinutes * 60 + $mySeconds) * 0.80" | bc`
-        myEndFrame=`echo "$STARTFRAME + $myParttime * 25" | bc`
-    fi
-    echo $myEndFrame
 }
 
 encodeAudio() {
@@ -324,7 +247,12 @@ encodeAudio() {
     MPLAYEROPTS="-nolirc -nocache -noframedrop -mc 0 -vc null -vo null -af volnorm=1 -channels 2"
     FIFO=$WORKDIR/audio.fifo
     AUDIO=`readOpt AUDIO`
-    [ -z "$AUDIO" ] && AUDIO=audio.$$.ogg && writeOpt AUDIO "$AUDIO"
+    if [ "$CONTAINER" == "avi" ]
+    then
+        [ -z "$AUDIO" ] && AUDIO=audio.$$.mp3 && writeOpt AUDIO "$AUDIO"
+    else
+        [ -z "$AUDIO" ] && AUDIO=audio.$$.ogg && writeOpt AUDIO "$AUDIO"
+    fi
 
     rm -f $WORKDIR/audio.fifo
 
@@ -352,21 +280,25 @@ encodeAudio() {
             echo    "mkfifo ${FIFO}" >> $COMMANDS
             ${DEBUG} mkfifo ${FIFO}
 
-            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${START} ${END} ${INPUT}" >> $COMMANDS
-            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${START} ${END} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
+            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}" >> $COMMANDS
+            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
 
             # Explanation:
             # Input is -r(aw), -R(aw rate is) 48000 bits, Encode with -q(uality) 3, using 2 -C(hannels)
             # OGGENCOPTS="-r -R ${ABITRATE} -q 3 -C ${ACHANNELS} "
             OGGENCOPTS="-q 3"
             echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> $COMMANDS
-            ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${OGGENCLOG} 2>&1
+            if [ "$CONTAINER" == "avi" ]
+            then
+                lame --nohist -h -r -s 48,0 --preset fast medium ${FIFO} ${OUTPUT} >> ${AUDIOENCLOG} 2>&1
+            else
+                ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
+            fi
             [ $? -eq 0 ] && writeOpt $OUTPUT "Done"
             ${DEBUG} rm ${FIFO} ${DEBUG2}
             sumAudioSize $OUTPUT
         fi
     done
-    getMovieLength
 }
 
 sumAudioSize() {
@@ -382,62 +314,54 @@ sumAudioSize() {
     writeOpt AUDIOSIZE "$AUDIOSIZE"
 }
 
-getMovieLength() {
-    [ "$MOVIESECONDS" ] || MOVIESECONDS=`readOpt MOVIESECONDS`
-    if [ -z "$MOVIESECONDS" ]
-    then
-        # Compute movie seconds from oggenc.log - See only first Track
-        MOVIESECONDS=`grep "File length" ${OGGENCLOG} | head -1 | \
-            sed -e "s/File length:/scale=4;/" -e "s/m/*60+/" -e "s/,/./" -e "s/s$//" | bc`
-        echo " Audio length = ${MOVIESECONDS}s"
-        writeOpt MOVIESECONDS $MOVIESECONDS
-    fi
-}
-
-setBitRate() {
-    if [ -z "$BITRATE" ] # TARGETSIZE is allways set.
-    then
-        echo "Reading Bitrate."
-        BITRATE=`readOpt BITRATE`
-        # Bitrate is: (TargetSizeMb-AudioSizeMb)*1024*1024/MovieSeconds*8/1000
-        if [ -z "$BITRATE" ] 
-        then
-            echo "Calculating Bitrate from Targetsize."
-            BITRATE=`echo "(${TARGETSIZE}-${AUDIOSIZE})*1024*1024*8/${MOVIESECONDS}/1000-1" | bc `
-        fi
-        BITRATE=${BITRATE:=800}
-        if [ $BITRATE -gt $MAXBITRATE ]
-        then
-            echo "Reducing video bitrate $BITRATE => $MAXBITRATE"
-            BITRATE=${MAXBITRATE}
-            TARGETSIZE=`echo "(${BITRATE}*${MOVIESECONDS}*1000)/(1024*1024*8)+${AUDIOSIZE}" | bc`
-        fi
-        if [ $BITRATE -lt $MINBITRATE ]
-        then
-            echo "Raising video bitrate $BITRATE => $MINBITRATE"
-            BITRATE=${MINBITRATE}
-            TARGETSIZE=`echo "(${BITRATE}*${MOVIESECONDS}*1000)/(1024*1024*8)+${AUDIOSIZE}" | bc`
-        fi
-    else
-        TARGETSIZE=`echo "(${BITRATE}*${MOVIESECONDS}*1000)/(1024*1024*8)+${AUDIOSIZE}" | bc`
-    fi
-    writeOpt BITRATE "$BITRATE"
-    writeOpt TARGETSIZE "$TARGETSIZE"
-
-    echo " Movie bitrate will be ${BITRATE}bps, size ca. ${TARGETSIZE} Mb"
+getAspect() {
+    ASPECT=`grep ID_VIDEO_ASPECT stream-infos.txt | cut -f 2 -d = | cut -f 1 -d .`
+    NUMERATOR=1
+    DENOMINATOR=1
+    case $ASPECT in
+        "0")
+            NUMERATOR=4
+            DENOMINATOR=3
+            ;;
+        "1"|"3")
+            NUMERATOR=16
+            DENOMINATOR=9
+            ;;
+    esac
 }
 
 setScale() {
+    # Scale without a bitrate
+    RAW_W=`grep ID_VIDEO_WIDTH stream-infos.txt | cut -f 2 -d =`
+    RAW_H=`grep ID_VIDEO_HEIGHT stream-infos.txt | cut -f 2 -d =`
+    getAspect
+    CROP_W=`echo $CROP | cut -f 1 -d :`
+    CROP_H=`echo $CROP | cut -f 2 -d :`
+
+    # ratio = crop_width / (gdouble) crop_height * raw_height / raw_width * anumerator / adenominator;
+    RATIO=`echo "scale=4; $CROP_W / $CROP_H * $RAW_H / $RAW_W * $NUMERATOR / $DENOMINATOR" | bc `
+    echo "Video info: ${RAW_W}x${RAW_H} ($NUMERATOR:$DENOMINATOR) crop ${CROP_W}x${CROP_H} ratio: $RATIO"
+
+    SCALE_W=$CROP_W
+    SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
+
+    echo "Scaling to: $SCALE_W x $SCALE_H"
+    SCALE="$SCALE_W:$SCALE_H"
+}
+
+scaleWithBitrate() {
     # Calculate every time, as the size or bitrate can be changed.
     ORIGASPECT=`readOpt ORIGASPECT`
     if [ -z "$ORIGASPECT" ]
     then
         MPLAYERSCALE="-nolirc -vo null -nosound -nocache -vf crop=${CROP} -frames 2"
-        echo    "mplayer ${MPLAYERSCALE} ${START} ${INPUT} ${DEBUG2}" >> $COMMANDS
-        ${DEBUG} mplayer ${MPLAYERSCALE} ${START} ${INPUT} ${DEBUG2} > ${SCALELOG} 2>&1
+        echo    "mplayer ${MPLAYERSCALE} ${INPUT} ${DEBUG2}" >> $COMMANDS
+        ${DEBUG} mplayer ${MPLAYERSCALE} ${INPUT} ${DEBUG2} > ${SCALELOG} 2>&1
         ORIGASPECT=`grep "VO:" ${SCALELOG} | awk '{print $5}'`
         writeOpt ORIGASPECT "$ORIGASPECT"
+        echo "ORIGASPECT: $ORIGASPECT"
     fi
+
     if [ -z "${SCALE}" ]
     then
         # Scaling with
@@ -460,27 +384,13 @@ setScale() {
         ResX=`echo "(${ResY} * ${ARc} / 16) * 16" | bc`
         [ $ResX -gt $aW ] && ResX=$aW
         SCALE="${ResX}:${ResY}"
-        if [ "${SCALE}" == "${aW}:${aH}" -a "$REDUCE" = "1" ]
-        then
-            echo "Scale to original size. Should recalculate bitrate."
-            recalcuteBitrateFromScale
-        fi
     fi
     echo " Scaling from ${ORIGASPECT} => ${SCALE}"
 }
 
-recalcuteBitrateFromScale() {
-    BITRATE=`echo "${ResY}*${ResY}*${CQ}*${ARc}*25/1000+1" | bc`
-    echo "I would make with this bitrate: ${BITRATE}"
-    setBitRate
-}
-
-
 encodeVideo() {
     VIDEO=`readOpt VIDEO`
     [ -z "$VIDEO" ] && VIDEO=$WORKDIR/video.$$.avi && writeOpt VIDEO "$VIDEO"
-    PASSLOG=`readOpt PASSLOG`
-    [ -z "$PASSLOG" ] && PASSLOG=$WORKDIR/passlog.$$.txt && writeOpt PASSLOG "$PASSLOG"
     # Explanation: {{{
     # subq=5 = good quality subpel. encode a bit faster
     # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion (CHANGED in new mplayer)
@@ -494,12 +404,12 @@ encodeVideo() {
     # bitrate=${BITRATE} = the target video bitrate
     # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
 
-    XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=3:threads=2"
+    XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=$QUANTIZER:threads=2"
 
     X264OPTS="subq=5:weight_b:8x8dct:frameref=2:mixed_refs:partitions=p8x8,b8x8,i8x8,i4x4:trellis=1"
-    X264OPTS="$X264OPTS:bframes=2:bitrate=${BITRATE}:direct_pred=auto"
+    X264OPTS="$X264OPTS:bframes=2:bitrate=${BITRATE}:direct_pred=auto" # FIXME BITRATE
 
-    CODEC="-ovc x264 -passlogfile ${PASSLOG}"
+    CODEC="-ovc x264"
     CODEC="-ovc xvid"
 
     # Explanation: {{{
@@ -512,26 +422,24 @@ encodeVideo() {
     # -zoom = do software scaling
     # -mc 0 = no A/V sync delta
     # -ovc x264 = encode video with x264
-    # -passlogfile ${PASSLOG} = logfile for encoding }}}
+    # }}}
     MENCODEROPTS="-nocache -noslices -noconfig all -oac pcm -srate 8000 -af channels=1,lavcresample=8000 -sws 7 -zoom -mc 0 ${CODEC}"
 
     # hqdn3d=2:1:2 = High Quality/Precision Denoise (better compression, smooth images)
     # harddup = don't drop duplicate frames.
     # SCALE removed from vf "-vf scale..."
     VFILTER="crop=${CROP},hqdn3d=2:1:2,harddup"
-    VFILTER="$VFILTER,scale=${SCALE}"
+    [ "${SCALE}" ] && VFILTER="$VFILTER,scale=${SCALE}" # Don't Scale anymore. "Höchstens auf ein 16" FIXME 
 
     encodePass1
-
-    # encodePass2
 }
 
 encodePass1() {
     # pass=1 = first pass
-    X264OPTS1="-x264encopts ${X264OPTS}:pass=1"
+    X264OPTS1="-x264encopts ${X264OPTS}"
 
-    CODECOPTS="-x264encopts ${X264OPTS}:pass=1"
-    [ "$VIDEOCODEC" == "xvid" ] && CODECOPTS="-xvidencopts $XVIDOPTS"
+    CODECOPTS="-x264encopts ${X264OPTS}"
+    [ "$CONTAINER" == "avi" ] && CODECOPTS="-xvidencopts $XVIDOPTS"
 
     # Enplanation: Put all together
     MENCODEROPTS1="${MENCODEROPTS} ${CODECOPTS}"
@@ -544,110 +452,13 @@ encodePass1() {
     else
         VIDEOPASS1=""
         echo "ENCONDING the video: 1st pass."
-        echo    "mencoder ${MENCODEROPTS1} -vf ${VFILTER} -o ${VIDEO} ${START} -endpos ${MOVIESECONDS} ${INPUT}" \
+        echo    "mencoder ${MENCODEROPTS1} -vf ${VFILTER} -o ${VIDEO} ${INPUT}" \
         >> $COMMANDS
         ${DEBUG} mencoder ${MENCODEROPTS1} -vf ${VFILTER} \
-            -o ${VIDEO} ${START} -endpos ${MOVIESECONDS} ${INPUT} ${DEBUG2} > $PASS1LOG 2>&1
+            -o ${VIDEO} ${INPUT} ${DEBUG2} > $VIDEOLOG 2>&1
         [ $? -eq 0 ] && writeOpt VIDEO1 "Done" && VIDEOPASS1=Done
     fi
 }
-
-# encodePass2() {
-#     # pass=2 = second pass
-#     X264OPTS2="-x264encopts ${X264OPTS}:pass=2"
-# 
-#     # Enplanation: Put all together
-#     MENCODEROPTS2="${MENCODEROPTS} ${X264OPTS2}"
-# 
-#     # Encode Video 2. pass
-#     if [ "$VIDEOPASS1" == "Done" ]
-#     then
-#         VIDEOPASS2=`readOpt VIDEO2`
-#         if [ "$VIDEOPASS2" == "Done" -a -s $VIDEO ]
-#         then
-#             echo "2nd pass already done. Skipping."
-#         else
-#             VIDEOPASS2=""
-#             echo "ENCONDING the video: 2nd pass."
-#             echo    "mencoder ${MENCODEROPTS2} -vf ${VFILTER} -o ${VIDEO} ${START} -endpos ${MOVIESECONDS} ${INPUT}" \
-#             >> $COMMANDS
-#             ${DEBUG} mencoder ${MENCODEROPTS2} -vf ${VFILTER} \
-#                 -o ${VIDEO} ${START} -endpos ${MOVIESECONDS} ${INPUT} ${DEBUG2} > $PASS2LOG 2>&1
-#             [ $? -eq 0 ] && writeOpt VIDEO2 "Done" && VIDEOPASS2=Done
-#         fi
-#     fi
-# }
-
-estimateSize() {
-    # {{{ How this work
-    # (800+112)*3600*1000/1024/1024/8
-    # (VideoBitRate+AudioBitRate)*LengthSeconds/A/B/C
-    # C = 8 (Bits -> Bytes)
-    # B = 1024 (Kib -> Mib)
-    # A = 1000/1024 ( Mib -> Mb) }}}
-    [ -s mapping-$DVDTITLE.txt ] && ESTIMATEDLENGTH=`grep "ID_LENGTH=" mapping-$DVDTITLE.txt | cut -f2 -d=`
-    [ "$ESTIMATEDLENGTH" ] || ESTIMATEDLENGTH=`mplayer -identify -frames 0 -vo null -ao null ${INPUT} 2> /dev/null | grep ID_LENGTH | cut -f 2 -d =`
-    # countFrames
-    # let ESTIMATEDLENGTH2=TOTALFRAMES/25
-    if [ "$BITRATE" ]
-    then
-        tracks=0
-        for i in $TRACKS
-        do
-            let tracks=tracks+1
-        done
-        ESTIMATEDSIZE=`echo "($BITRATE+$tracks*112)*$ESTIMATEDLENGTH*1000/1024/1024/8" | bc`
-        echo "Size will be ca. $ESTIMATEDSIZE Mb."
-        # ESTIMATEDSIZE2=`echo "($BITRATE+$tracks*112)*$ESTIMATEDLENGTH2*1000/1024/1024/8" | bc`
-        # echo "Size will be ca. $ESTIMATEDSIZE2 Mb. (method 2)"
-    fi
-}
-
-# countFrames() {
-#     TOTALFRAMES=`readOpt TOTALFRAMES`
-#     if [ -z "${TOTALFRAMES}" ]
-#     then
-#         echo "Counting total frames: "
-#         mplayer -nosound -vo null -nocache -speed 100 ${INPUT} 2> /dev/null > $FRAMESLOG
-#         TOTALFRAMES=`tail -c 1000 ${FRAMESLOG} | sed "s//\n/g" | grep "V:" | tail -1 | cut -f 2 -d " " | cut -f 1 -d "/" | cut -f 1 -d.`
-#         if [ "$TOTALFRAMES" ]
-#         then
-#             writeOpt TOTALFRAMES $TOTALFRAMES
-#         else
-#             writeOpt TOTALFRAMES ERROR
-#             exit 1
-#         fi
-#     fi
-#     if [ "$TOTALFRAMES" == "ERROR" ]
-#     then
-#         alternateFrames
-#     fi
-#     echo "Total frames: $TOTALFRAMES"
-#     FILESIZE=`ls -l ${INPUT} | awk '{print $5}'`
-# }
-
-# alternateFrames() {
-#     if [ -f $FRAMELOG ]
-#     then
-#         MYSTART=`head -c 1000 ${FRAMESLOG} | sed "s//\n/g" | grep "V:" | head -1 | sed "s/V: *\([0-9\.]*\) *.*/\1/"`
-#         MYEND=`tail -c 1000 ${FRAMESLOG} | sed "s//\n/g" | grep "V:" | tail -1 | sed "s/V: *\([0-9\.]*\) *.*/\1/"`
-#         MYFPS=`grep "VIDEO:" ${FRAMESLOG} | sed "s/.*[ 	]\([1-9][0-9\.]*\)[ 	]*fps.*/\1/"`
-#         ESTIMATESECONDS=`echo "scale=0; ($MYEND-$MYSTART)" | bc | cut -f 1 -d.`
-#         TOTALFRAMES=`echo "scale=0; ($MYEND-$MYSTART)*$MYFPS" | bc | cut -f 1 -d.`
-#         if [ "$ESTIMATESECONDS" -a $ESTIMATESECONDS -gt 0 ]
-#         then
-#             writeOpt ESTIMATESECONDS $ESTIMATESECONDS
-#         fi
-#         if [ "$TOTALFRAMES" -a $TOTALFRAMES -gt 0 ]
-#         then
-#             writeOpt TOTALFRAMES $TOTALFRAMES
-#         else
-#             echo "Error counting frames."
-#             exit 1
-#             # TODO try to make without TOTALFRAMES.
-#         fi
-#    fi
-# }
 
 mergeStream() {
 # Explanation: {{{
@@ -665,10 +476,20 @@ mergeStream() {
         for track in $TRACKS
         do
             lang=`getLanguageOfTrack $track`
-            AUDIOCODE="$AUDIOCODE --language 0:$lang --sync 0:$DELAY -D -S $WORKDIR/$track-${AUDIO}"
+            if [ "${CONTAINER}" == "avi" ]
+            then
+                AUDIOCODE="$AUDIOCODE $WORKDIR/$track-${AUDIO}"
+            else
+                AUDIOCODE="$AUDIOCODE --language 0:$lang --sync 0:$DELAY -D -S $WORKDIR/$track-${AUDIO}"
+            fi
         done
         echo    "mkvmerge $MERGEOPTS $AUDIOCODE --title \"${NAME}\"" >> $COMMANDS
-        ${DEBUG} mkvmerge $MERGEOPTS $AUDIOCODE --title "${NAME}" > $MERGELOG 2>&1
+        if [ "${CONTAINER}" == "avi" ]
+        then
+            avibox -o ${FILENAME}.avi -n -i ${VIDEO} ${AUDIOCODE}  -f XVID 
+        else
+            ${DEBUG} mkvmerge $MERGEOPTS $AUDIOCODE --title "${NAME}" > $MERGELOG 2>&1
+        fi
     fi
 }
 
@@ -681,6 +502,14 @@ getDVDInfos() {
     exit 0
 }
 
+getStreamInfos() {
+    if [ ! -s stream-infos.txt ]
+    then
+        echo "Getting Stream Infos"
+        mplayer -frames 0 -vo null -ao null -identify ${INPUT} 2> /dev/null | grep "^ID_" > stream-infos.txt
+    fi
+}
+
 getLanguageOfTrack() {
     if [ -s mapping-$DVDTITLE.txt ]
     then
@@ -688,7 +517,6 @@ getLanguageOfTrack() {
     else
         echo "de"
     fi
-
 }
 
 rippDVD() {
@@ -696,12 +524,9 @@ rippDVD() {
     getDVDInfos
 }
 
-MAXBITRATE=1500
-MINBITRATE=750
 DELAY=0
 
 # TODO: Add option for part-jobs (Only encode audio, or detect things, or encode video, or merge files)
-
 
 # do work
 
@@ -709,30 +534,16 @@ parseOpts "$@"
 
 initialize
 
-estimateSize
+getStreamInfos
 
 detectCrop
 
 encodeAudio
-
-setBitRate
 
 setScale
 
 encodeVideo
 
 mergeStream
-
-##### OLD CODE
-
-# HOW TO GET SUBGTITLES:
-# mencoder -nocache -nosound -of rawaudio -ovc copy -o /dev/null -vobsubout /tmp/sub.AFV8OU -vobsuboutindex 0 -sid 0 -dvd-device /opt/bigdata/claudio/dvdrip/vdr/dvdJK8As0 dvd://1
-# subp2pgm /tmp/sub.AFV8OU
-# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0247.pgm.txt /tmp/sub.AFV8OU0247.pgm
-# processing file `/tmp/sub.AFV8OU0247.pgm'
-# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0049.pgm.txt /tmp/sub.AFV8OU0049.pgm
-# processing file `/tmp/sub.AFV8OU0049.pgm'
-# ocrad -v -f -F utf8 -l 0 -o /tmp/sub.AFV8OU0440.pgm.txt /tmp/sub.AFV8OU0440.pgm
-# processing file `/tmp/sub.AFV8OU0440.pgm'
 
 # vim:set foldmethod=marker:
