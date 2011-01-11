@@ -41,8 +41,11 @@
 
 # }}}
 export LANG=C
+
+# Defaults
 export CONTAINER=avi
-export QUANTIZER=3
+export QUANTIZER=2
+export SCALEFACTOR=1
 
 # New select if container is mkv (h264+ogg) or avi (xvid+mp3)
 
@@ -50,7 +53,7 @@ export QUANTIZER=3
 
 parseOpts() {
     ### parse options
-    args=`getopt -n encode-hq.sh -o i:x:t:a:d:D:T:q:c:IRh -- "$@"`
+    args=`getopt -n encode-hq.sh -o i:x:t:a:d:D:T:q:c:Z:IRh -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
@@ -81,6 +84,8 @@ parseOpts() {
         "-q") QUANTIZER=$2; shift # Quantizer
             ;;
         "-c") CONTAINER=$2; shift # Container
+            ;;
+        "-Z") SCALEFACTOR=$2; shift # SCALEFACTOR
             ;;
         "-I") getDVDInfos
             ;;
@@ -344,8 +349,12 @@ setScale() {
 
     SCALE_W=$CROP_W
     SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
+    echo "Normal scaling to: $SCALE_W x $SCALE_H"
 
-    echo "Scaling to: $SCALE_W x $SCALE_H"
+    SCALE_W=`echo $SCALE_W*$SCALEFACTOR/16*16 | bc` 
+    SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
+    echo "Factor ($SCALEFACTOR) scaling to: $SCALE_W x $SCALE_H"
+
     SCALE="$SCALE_W:$SCALE_H"
 }
 
@@ -538,9 +547,9 @@ getStreamInfos
 
 detectCrop
 
-encodeAudio
-
 setScale
+
+encodeAudio
 
 encodeVideo
 
