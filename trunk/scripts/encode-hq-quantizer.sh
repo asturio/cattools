@@ -49,6 +49,9 @@ export CONTAINER=avi
 export QUANTIZER=2
 export SCALEFACTOR=1
 
+# TODO: So müsste es sein: Default werte hier, dann Werte aus Config, dann Commandozeile.
+# Problem ist nur, dass um Config zu wissen, die Commandozeile gelesen werden muss.
+
 # New select if container is mkv (h264+ogg) or avi (xvid+mp3)
 
 #set -x
@@ -60,11 +63,8 @@ parseOpts() {
     then
         usage
     fi
-    eval set -- "$args"
-    # echo "ARGS: $args"
-    # echo ""
 
-    TRACKS="";
+    eval set -- "$args"
     while [ "$1" ]
     do
         case "$1" in
@@ -72,11 +72,28 @@ parseOpts() {
               [ "$INPUT" ] && CONFIG=`basename ${INPUT}`.conf
               break
             ;;
+        esac
+        shift
+    done
+
+    [ -z "$INPUT" -o ! -s "$INPUT" ] && echo "Input Needed!" && usage
+    # echo "INPUT: '$INPUT' CONFIG: '$CONFIG'"
+    # echo "ARGS: $args"
+    # echo ""
+    readConfig
+
+    eval set -- "$args"
+    while [ "$1" ]
+    do
+        case "$1" in
         "-x") CROP=$2; shift # Crop
+            writeOpt CROP "$CROP"
             ;;
         "-t") NAME=$2; shift # Title
+            writeOpt NAME "$NAME"
             ;;
         "-a") TRACKS="$TRACKS $2"; shift # Audio Tracks
+            writeOpt TRACKS "$TRACKS"
             ;;
         "-d") DVD="-dvd-device $2"; shift
             ;;
@@ -84,13 +101,27 @@ parseOpts() {
             ;;
         "-T") DVDTITLE=$2; shift # Title
             ;;
-        "-q") QUANTIZER=$2; shift # Quantizer
+        "-q") QUANTIZER=$2; 
+            writeOpt QUANTIZER "$QUANTIZER"
+            shift # Quantizer
             ;;
         "-c") CONTAINER=$2; shift # Container
+            writeOpt CONTAINER "$CONTAINER"
             ;;
-        "-z") SCALEFACTOR=$2; shift # SCALEFACTOR
+        "-z") 
+            SCALEFACTOR=$2; 
+            unset SCALEWIDTH; 
+            shift # SCALEFACTOR
+            writeOpt SCALEFACTOR "$SCALEFACTOR"
+            writeOpt SCALEWIDTH ""
             ;;
-        "-w") SCALEWIDTH=$2; shift # SCALE Width
+        "-w") 
+            SCALEWIDTH=$2; 
+            SCALEFACTOR=1;
+            shift # SCALE Width
+            writeOpt SCALEWIDTH "$SCALEWIDTH"
+            writeOpt SCALEFACTOR ""
+            writeOpt SCALEWIDTH ""
             ;;
         "-I") getDVDInfos
             ;;
@@ -101,15 +132,16 @@ parseOpts() {
         esac
         shift
     done
-    echo "INPUT: '$INPUT' CONFIG: '$CONFIG'"
 
-    [ -z "$INPUT" -o ! -s "$INPUT" ] && echo "Input Needed!" && usage
+    echo After Parse 
+    exit
+}
 
-    [ "$NAME" ] && writeOpt NAME "$NAME"
-    [ "$CROP" ] && writeOpt CROP "$CROP"
-    [ "$TRACKS" ] && writeOpt TRACKS "$TRACKS"
-    [ "$SCALEFACTOR" ] && writeOpt SCALEFACTOR "$SCALEFACTOR"
-    [ "$SCALEWIDTH" ] && writeOpt SCALEWIDTH "$SCALEWIDTH"
+readConfig() {
+    CROP=`readOpt CROP`
+    NAME=`readOpt NAME`
+    TRACKS=`readOpt TRACKS`
+    QUANTIZER=`readOpt QUANTIZER`
 }
 
 initialize() {
@@ -122,13 +154,12 @@ initialize() {
     LOGDIR=$WORKDIR/logs
 
     [ -d $LOGDIR ] || mkdir -p $LOGDIR
-    IDENTIFY=$LOGDIR/00-identify.txt
+    IDENTIFY=$LOGDIR/00-identify.txt # TODO: Use this
     CROPLOG=$LOGDIR/01-cropdetect.log
     MPLAYERAUDIOLOG=$LOGDIR/02-mplayer-audio.log
     AUDIOENCLOG=$LOGDIR/03-audioenc.log
-    SCALELOG=$LOGDIR/04-scale.log
-    VIDEOLOG=$LOGDIR/05-video.log
-    MERGELOG=$LOGDIR/06-merge.log
+    VIDEOLOG=$LOGDIR/04-video.log
+    MERGELOG=$LOGDIR/05-merge.log
     COMMANDS=$LOGDIR/commands.txt
 
     [ "$NAME" ] || NAME=`readOpt NAME`
@@ -136,8 +167,14 @@ initialize() {
     FILENAME=`echo ${NAME} | tr " 	" "__"`
     [ "$TRACKS" ] || TRACKS=`readOpt TRACKS`
     [ "$TRACKS" ] || TRACKS=0
+    SCALEWIDTH=`readOpt SCALEWIDTH`
+    SCALEFACTOR=`readOpt SCALEFACTOR`
 
-    echo "Encoding to $CONTAINER, using Quantizer $QUANTIZER."
+    MYMSG="Encoding to $CONTAINER, using Quantizer $QUANTIZER."
+    [ "$SCALEWIDTH" ] && MYMSG="$MYMSG Scale-width=$SCALEWIDTH."
+    [ "$SCALEFACTOR" ] && MYMSG="$MYMSG Scale-factor=$SCALEFACTOR."
+    
+    echo $MYMSG
 
     checkbins
 }
@@ -167,6 +204,10 @@ usage() {
     -d <dvd-device> - Set the DVD-Device. Used with -I or -R
     -D <delay>      - Audio Delay to use
     -T <title>      - Title number in DVD for use with -R and -I
+    -q              - Quantizer (the lower the better, default 2)
+    -c              - Container type (avi or mkv). By now only with
+    -z              - Scalefactor: scale width with this factor, should be between 0 and 1).
+    -w              - Scalewidth: select this width for the movie. 
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
     -h              - This help
@@ -186,7 +227,7 @@ writeOpt() {
     then
         grep -v "^$1=" $CONFIG > $CONFIG.tmp
     fi
-    echo "$1=$2" >> $CONFIG.tmp
+    [ "$2" ] && echo "$1=$2" >> $CONFIG.tmp
     mv $CONFIG.tmp $CONFIG
 }
 
@@ -358,6 +399,7 @@ setScale() {
     echo "Video info: ${RAW_W}x${RAW_H} ($NUMERATOR:$DENOMINATOR) crop ${CROP_W}x${CROP_H} ratio: $RATIO"
 
     SCALE_W=$CROP_W
+    [ -n "$SCALEWIDTH" -a $SCALEWIDTH -lt $CROP_W ] && SCALE_W=$SCALEWIDTH
     SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
     echo "Normal scaling to: $SCALE_W x $SCALE_H"
 
@@ -366,45 +408,6 @@ setScale() {
     echo "Factor ($SCALEFACTOR) scaling to: $SCALE_W x $SCALE_H"
 
     SCALE="$SCALE_W:$SCALE_H"
-}
-
-scaleWithBitrate() {
-    # Calculate every time, as the size or bitrate can be changed.
-    ORIGASPECT=`readOpt ORIGASPECT`
-    if [ -z "$ORIGASPECT" ]
-    then
-        MPLAYERSCALE="-nolirc -vo null -nosound -nocache -vf crop=${CROP} -frames 2"
-        echo    "mplayer ${MPLAYERSCALE} ${INPUT} ${DEBUG2}" >> $COMMANDS
-        ${DEBUG} mplayer ${MPLAYERSCALE} ${INPUT} ${DEBUG2} > ${SCALELOG} 2>&1
-        ORIGASPECT=`grep "VO:" ${SCALELOG} | awk '{print $5}'`
-        writeOpt ORIGASPECT "$ORIGASPECT"
-        echo "ORIGASPECT: $ORIGASPECT"
-    fi
-
-    if [ -z "${SCALE}" ]
-    then
-        # Scaling with
-        # ARc = (Wc x (ARa / PRdvd )) / Hc  and
-        # ResY = INT(SQRT( 1000*Bitrate/25/ARc/CQ )/16) * 16 and
-        # ResX = INT( ResY * ARc / 16) * 16
-        echo "Detecting scale"
-        PRdvd=1.25
-        CQ=0.25
-        ARa=`echo $ORIGASPECT | sed "s/x/\//"`
-        ARa=`echo "scale=4; $ARa" | bc`
-        aW=`echo ${ORIGASPECT} | cut -f1 -dx`
-        aH=`echo ${ORIGASPECT} | cut -f2 -dx`
-        Wc=`echo ${CROP} | cut -f1 -d:`
-        Hc=`echo ${CROP} | cut -f2 -d:`
-        ARc=`echo "scale=4; (${Wc} * (${ARa} / ${PRdvd})) / $Hc" | bc`
-        echo "Original aspect is ${ORIGASPECT} (${ARa}) ARc=${ARc}"
-        ResY=`echo "sqrt(1000*${BITRATE}/25/${ARc}/${CQ})/16*16" | bc`
-        [ $ResY -gt $aH ] && ResY=$aH && REDUCE=1
-        ResX=`echo "(${ResY} * ${ARc} / 16) * 16" | bc`
-        [ $ResX -gt $aW ] && ResX=$aW
-        SCALE="${ResX}:${ResY}"
-    fi
-    echo " Scaling from ${ORIGASPECT} => ${SCALE}"
 }
 
 encodeVideo() {
@@ -450,10 +453,6 @@ encodeVideo() {
     VFILTER="crop=${CROP},hqdn3d=2:1:2,harddup"
     [ "${SCALE}" ] && VFILTER="$VFILTER,scale=${SCALE}" # Don't Scale anymore. "Höchstens auf ein 16" FIXME 
 
-    encodePass1
-}
-
-encodePass1() {
     # pass=1 = first pass
     X264OPTS1="-x264encopts ${X264OPTS}"
 
@@ -461,21 +460,21 @@ encodePass1() {
     [ "$CONTAINER" == "avi" ] && CODECOPTS="-xvidencopts $XVIDOPTS"
 
     # Enplanation: Put all together
-    MENCODEROPTS1="${MENCODEROPTS} ${CODECOPTS}"
+    MENCODEROPTS="${MENCODEROPTS} ${CODECOPTS}"
 
     # Encode Video 1. pass
-    VIDEOPASS1=`readOpt VIDEO1`
-    if [ "$VIDEOPASS1" == "Done" -a -s ${VIDEO} ]
+    VIDEODONE=`readOpt VIDEO`
+    if [ "$VIDEODONE" == "Done" -a -s ${VIDEO} ]
     then
         echo "1st pass already done. Skipping."
     else
-        VIDEOPASS1=""
-        echo "ENCONDING the video: 1st pass."
-        echo    "mencoder ${MENCODEROPTS1} -vf ${VFILTER} -o ${VIDEO} ${INPUT}" \
+        VIDEODONE=""
+        echo "ENCONDING the video..."
+        echo    "mencoder ${MENCODEROPTS} -vf ${VFILTER} -o ${VIDEO} ${INPUT}" \
         >> $COMMANDS
-        ${DEBUG} mencoder ${MENCODEROPTS1} -vf ${VFILTER} \
+        ${DEBUG} mencoder ${MENCODEROPTS} -vf ${VFILTER} \
             -o ${VIDEO} ${INPUT} ${DEBUG2} > $VIDEOLOG 2>&1
-        [ $? -eq 0 ] && writeOpt VIDEO1 "Done" && VIDEOPASS1=Done
+        [ $? -eq 0 ] && writeOpt VIDEO "Done" && VIDEODONE=Done
     fi
 }
 
@@ -487,7 +486,7 @@ mergeStream() {
 # -D = no video
 # --language 0:ger = Audio stream 0 is german (can be used more times)
 # --sync 0:-100 Delay Audio in -100 ms (skip 100ms of video frames) }}}
-    if [ "$VIDEOPASS1" == "Done" ]
+    if [ "$VIDEODONE" == "Done" ]
     then
         echo "Merging streams"
         MERGEOPTS="-o ${FILENAME}.mkv --command-line-charset UTF-8 -d 0 -A -S ${VIDEO}"
