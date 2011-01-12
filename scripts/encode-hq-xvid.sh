@@ -40,6 +40,8 @@
 #DEBUG2="#"
 
 # }}}
+
+# This script is optimized for encoding with a quantizer, not with filesize or bitrate (actually the only way to
 export LANG=C
 
 # Defaults
@@ -53,7 +55,7 @@ export SCALEFACTOR=1
 
 parseOpts() {
     ### parse options
-    args=`getopt -n encode-hq.sh -o i:x:t:a:d:D:T:q:c:Z:IRh -- "$@"`
+    args=`getopt -n encode-hq.sh -o x:t:a:d:D:T:q:c:z:w:IRh -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
@@ -66,8 +68,9 @@ parseOpts() {
     while [ "$1" ]
     do
         case "$1" in
-        "-i") INPUT=$2; shift # Input file NEEDED
-              CONFIG=`basename ${INPUT}`.conf
+        "--") INPUT=$2; shift # Input file NEEDED
+              [ "$INPUT" ] && CONFIG=`basename ${INPUT}`.conf
+              break
             ;;
         "-x") CROP=$2; shift # Crop
             ;;
@@ -85,7 +88,9 @@ parseOpts() {
             ;;
         "-c") CONTAINER=$2; shift # Container
             ;;
-        "-Z") SCALEFACTOR=$2; shift # SCALEFACTOR
+        "-z") SCALEFACTOR=$2; shift # SCALEFACTOR
+            ;;
+        "-w") SCALEWIDTH=$2; shift # SCALE Width
             ;;
         "-I") getDVDInfos
             ;;
@@ -96,12 +101,15 @@ parseOpts() {
         esac
         shift
     done
+    echo "INPUT: '$INPUT' CONFIG: '$CONFIG'"
 
     [ -z "$INPUT" -o ! -s "$INPUT" ] && echo "Input Needed!" && usage
 
     [ "$NAME" ] && writeOpt NAME "$NAME"
     [ "$CROP" ] && writeOpt CROP "$CROP"
     [ "$TRACKS" ] && writeOpt TRACKS "$TRACKS"
+    [ "$SCALEFACTOR" ] && writeOpt SCALEFACTOR "$SCALEFACTOR"
+    [ "$SCALEWIDTH" ] && writeOpt SCALEWIDTH "$SCALEWIDTH"
 }
 
 initialize() {
@@ -129,6 +137,8 @@ initialize() {
     [ "$TRACKS" ] || TRACKS=`readOpt TRACKS`
     [ "$TRACKS" ] || TRACKS=0
 
+    echo "Encoding to $CONTAINER, using Quantizer $QUANTIZER."
+
     checkbins
 }
 
@@ -147,18 +157,18 @@ checkbins() {
 
 usage() {
     echo "Usage:
-    `basename $0` -i <file> -b <rate> -s <size> -x <crop> -t <title> -S <start> -E <end> -z <scale> -a <audio id> -d <dvd-dev> -IR
+    `basename $0` <input-file> -x <crop> -t <title> -z <scalefactor> -a <audio id> -d <dvd-dev> -IR
     Ex.: $0 -i VR_MOVIE.VRO -S 260000 -E 2:00:40 -s 700 -t \"Movie Name\"
-    -i <input-file> - The file to encode. MANDATORY.
-    -t <name>       - The name of the Movie.
+    <input-file> - The file to encode. MANDATORY.
     -x <crop>       - Crop with xxx:yyy:aa:bb. If not given, than autocrop.
+    -t <name>       - The name of the Movie.
     -a <audio id>   - The id of the audio track to encode, multiple -a
                       are allowed. The order will be preserved
+    -d <dvd-device> - Set the DVD-Device. Used with -I or -R
     -D <delay>      - Audio Delay to use
+    -T <title>      - Title number in DVD for use with -R and -I
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
-    -d <dvd-device> - Set the DVD-Device. Used with -I or -R
-    -T <title>      - Title number in DVD for use with -R and -I
     -h              - This help
     "
     exit 0
