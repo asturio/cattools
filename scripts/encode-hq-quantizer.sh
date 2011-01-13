@@ -43,6 +43,7 @@
 #DEBUG=echo
 # Uncomment this do echo to stdout
 #DEBUG2="#"
+# TODO: mplayer with start and endtime
 #set -x
 export LANG=C
 
@@ -144,20 +145,23 @@ readConfig() {
 }
 
 displayVariables() {
-    # TODO Beautify
-    echo "CONTAINER:    '$CONTAINER'" 
-    echo "NAME:         '$NAME'"
-    echo "QUANTIZER:    '$QUANTIZER'"
-    echo "SCALEFACTOR:  '$SCALEFACTOR'"
-    echo "SCALEWIDTH:   '$SCALEWIDTH'"
-    echo "TRACKS:       '$TRACKS'"
+    echo "Using these parameters:"
+    echo -n "C:'$CONTAINER' " 
+    echo -n "N:'$NAME' "
+    echo -n "Q:'$QUANTIZER' "
+    echo -n "SF:'$SCALEFACTOR' "
+    echo -n "SW:'$SCALEWIDTH' "
+    echo -n "T:'$TRACKS' "
 
-    echo "AUDIO:        '$AUDIO'"
-    echo "AUDIOSIZE:    '$AUDIOSIZE'"
-    echo "ESTIMATESECONDS: '$ESTIMATESECONDS'"
-    echo "VIDEO:        '$VIDEO'"
-    echo "CROP:         '$CROP'"
-    echo "WORKDIR:      '$WORKDIR'" 
+    echo -n "A:'$AUDIO' "
+    echo -n "AS:'$AUDIOSIZE' "
+    echo -n "ES:'$ESTIMATESECONDS' "
+    echo -n "V:'$VIDEO' "
+    echo -n "CROP:'$CROP' "
+    echo -n "WD:'$WORKDIR' " 
+    echo -n "FILE:'$FILENAME' " 
+    echo "" # EOL
+    echo "" # NL
 }
 
 initialize() {
@@ -251,7 +255,6 @@ writeOpt() {
     mv $CONFIG.tmp $CONFIG
 }
 
-# TODO: mplayer with start and endtime
 detectCropByTime() {
     # Since 4.4.3 not working with -sb Startbyte     GRRRRRRRrrrr
     MPLAYERCROP="-nolirc -vo null -nosound -nocache -vf cropdetect -frames 12 -speed 100"
@@ -266,7 +269,7 @@ detectCropByTime() {
     # myStartPos=0
     # myEndPos=$ESTIMATESECONDS
     rm -f ${CROPLOG}
-    mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT} ${DEBUG2} >> ${CROPLOG} 2>&1
+    mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT} ${DEBUG2} > ${CROPLOG} 2>&1
     CROP=`grep "crop=" ${CROPLOG} | tail -1 | cut -f2 -d= | cut -f1 -d")"`
     x=`echo $CROP | cut -f 1 -d:`
     y=`echo $CROP | cut -f 2 -d:`
@@ -328,29 +331,18 @@ encodeAudio() {
             echo "Encoding Audio track $track."
             [ "$track" -ne "0" ] && AID="-aid $track"
 
-            # First detect audio format:
-            # echo " Detecting Audio format"
-            # Not needed anymore. Dumpfile als normal Wave (WITH header), so oggenc can detect the format
-            # AUDIOLINE=`mplayer -vo null -ao null -frames 2 ${AID} ${INPUT} 2> /dev/null | grep AUDIO`
-            # ABITRATE=`echo $AUDIOLINE | awk '{print $2}'`
-            # ACHANNELS=`echo $AUDIOLINE | awk '{print $4}'`
-            # echo " Audio is ${ABITRATE} Hz and ${ACHANNELS} Channels."
-
             echo    "mkfifo ${FIFO}" >> $COMMANDS
             ${DEBUG} mkfifo ${FIFO}
 
             echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}" >> $COMMANDS
             ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
 
-            # Explanation:
-            # Input is -r(aw), -R(aw rate is) 48000 bits, Encode with -q(uality) 3, using 2 -C(hannels)
-            # OGGENCOPTS="-r -R ${ABITRATE} -q 3 -C ${ACHANNELS} "
-            OGGENCOPTS="-q 3"
-            echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> $COMMANDS
             if [ "$CONTAINER" == "avi" ]
             then
                 lame --nohist -h -r -s 48,0 --preset fast medium ${FIFO} ${OUTPUT} >> ${AUDIOENCLOG} 2>&1
             else
+                OGGENCOPTS="-q 3"
+                echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> $COMMANDS
                 ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
             fi
             [ $? -eq 0 ] && writeOpt $OUTPUT "Done"
@@ -415,26 +407,6 @@ setScale() {
 
 encodeVideo() {
     [ -z "$VIDEO" ] && VIDEO=$WORKDIR/video.$$.avi && writeOpt VIDEO "$VIDEO"
-    # Explanation: {{{
-    # subq=5 = good quality subpel. encode a bit faster
-    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion (CHANGED in new mplayer)
-    # weight_b = use weighted B-Frames
-    # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
-    # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
-    # mixed_refs = 8x8 and 16x8 motion partition can use different reference frames.
-    # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
-    # trellis=1 = Enable rate-distortion optimal quantization for final encode
-    # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
-    # bitrate=${BITRATE} = the target video bitrate
-    # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
-
-    XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=$QUANTIZER:threads=2"
-
-    X264OPTS="subq=5:weight_b:8x8dct:frameref=2:mixed_refs:partitions=p8x8,b8x8,i8x8,i4x4:trellis=1"
-    X264OPTS="$X264OPTS:bframes=2:bitrate=${BITRATE}:direct_pred=auto" # FIXME BITRATE
-
-    CODEC="-ovc x264"
-    CODEC="-ovc xvid"
 
     # Explanation: {{{
     # -nocache = set no cache
@@ -447,7 +419,7 @@ encodeVideo() {
     # -mc 0 = no A/V sync delta
     # -ovc x264 = encode video with x264
     # }}}
-    MENCODEROPTS="-nocache -noslices -noconfig all -oac pcm -srate 8000 -af channels=1,lavcresample=8000 -sws 7 -zoom -mc 0 ${CODEC}"
+    MENCODEROPTS="-nocache -noslices -noconfig all -oac pcm -srate 8000 -af channels=1,lavcresample=8000 -sws 7 -zoom -mc 0 "
 
     # hqdn3d=2:1:2 = High Quality/Precision Denoise (better compression, smooth images)
     # harddup = don't drop duplicate frames.
@@ -455,8 +427,28 @@ encodeVideo() {
     VFILTER="crop=${CROP},hqdn3d=2:1:2,harddup"
     [ "${SCALE}" ] && VFILTER="$VFILTER,scale=${SCALE}"
 
-    CODECOPTS="-x264encopts ${X264OPTS}"
-    [ "$CONTAINER" == "avi" ] && CODECOPTS="-xvidencopts $XVIDOPTS"
+    if [ "$CONTAINER" == "avi" ] 
+    then
+        XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=$QUANTIZER:threads=2"
+        CODECOPTS="-ovc xvid -xvidencopts $XVIDOPTS"
+    else
+    # Explanation: {{{
+    # subq=5 = good quality subpel. encode a bit faster
+    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion (CHANGED in new mplayer)
+    # weight_b = use weighted B-Frames
+    # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
+    # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
+    # mixed_refs = 8x8 and 16x8 motion partition can use different reference frames.
+    # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
+    # trellis=1 = Enable rate-distortion optimal quantization for final encode
+    # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
+    # bitrate=${BITRATE} = the target video bitrate
+    # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
+        XQUANT=`echo "scale=1; 12+6*l($QUANTIZER)/l(2)" | bc -l`
+        X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
+        X264OPTS="$X264OPTS:crf=${XQUANT}:threads=2"
+        CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
+    fi
 
     # Enplanation: Put all together
     MENCODEROPTS="${MENCODEROPTS} ${CODECOPTS}"
