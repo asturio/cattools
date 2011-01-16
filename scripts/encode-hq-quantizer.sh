@@ -61,57 +61,57 @@ parseOpts() {
     fi
 
     eval set -- "$args"
-    while [ "$1" ]
+    while [ "${1}" ]
     do
-        case "$1" in
-        "--") INPUT=$2; shift # Input file NEEDED
-              [ "$INPUT" ] && CONFIG=`basename ${INPUT}`.conf
+        case "${1}" in
+        "--") INPUT=${2}; shift # Input file NEEDED
+              [ "${INPUT}" ] && CONFIG=`basename ${INPUT}`.conf
               break
             ;;
         esac
         shift
     done
-    [ -z "$INPUT" -o ! -s "$INPUT" ] && echo "Input Needed!" && usage
+    [ -z "${INPUT}" -o ! -s "${INPUT}" ] && echo "Input Needed!" && usage
 
     readConfig
     eval set -- "$args"
-    while [ "$1" ]
+    while [ "${1}" ]
     do
-        case "$1" in
-        "-x") CROP=$2; shift # Crop
-            writeOpt CROP "$CROP"
+        case "${1}" in
+        "-x") CROP=${2}; shift # Crop
+            writeOpt CROP "${CROP}"
             ;;
-        "-t") NAME=$2; shift # Title
-            writeOpt NAME "$NAME"
+        "-t") NAME=${2}; shift # Title
+            writeOpt NAME "${NAME}"
             ;;
-        "-a") TRACKS="$TRACKS $2"; shift # Audio Tracks
-            writeOpt TRACKS "$TRACKS"
+        "-a") TRACKS="${TRACKS} ${2}"; shift # Audio Tracks
+            writeOpt TRACKS "${TRACKS}"
             ;;
-        "-d") DVD="-dvd-device $2"; shift
+        "-d") DVD="-dvd-device ${2}"; shift
             ;;
-        "-D") DELAY="$2"; shift
+        "-D") DELAY="${2}"; shift
             ;;
-        "-T") DVDTITLE=$2; shift # Title
+        "-T") DVDTITLE=${2}; shift # Title
             ;;
-        "-q") QUANTIZER=$2; 
-            writeOpt QUANTIZER "$QUANTIZER"
+        "-q") QUANTIZER=${2}; 
+            writeOpt QUANTIZER "${QUANTIZER}"
             shift # Quantizer
             ;;
-        "-c") CONTAINER=$2; shift # Container
-            writeOpt CONTAINER "$CONTAINER"
+        "-c") CONTAINER=${2}; shift # Container
+            writeOpt CONTAINER "${CONTAINER}"
             ;;
         "-z") 
-            SCALEFACTOR=$2; 
+            SCALEFACTOR=${2}; 
             unset SCALEWIDTH; 
             shift # SCALEFACTOR
-            writeOpt SCALEFACTOR "$SCALEFACTOR"
+            writeOpt SCALEFACTOR "${SCALEFACTOR}"
             writeOpt SCALEWIDTH ""
             ;;
         "-w") 
-            SCALEWIDTH=$2; 
+            SCALEWIDTH=${2}; 
             SCALEFACTOR=1;
             shift # SCALE Width
-            writeOpt SCALEWIDTH "$SCALEWIDTH"
+            writeOpt SCALEWIDTH "${SCALEWIDTH}"
             writeOpt SCALEFACTOR "1"
             ;;
         "-I") getDVDInfos
@@ -128,12 +128,12 @@ parseOpts() {
 readConfig() {
     # Everything that is not generatet after parsing options should have a
     # default value.
-    CONTAINER=`readOpt CONTAINER "$CONTAINER"`
-    NAME=`readOpt NAME "$NAME"`
-    QUANTIZER=`readOpt QUANTIZER "$QUANTIZER"`
-    SCALEFACTOR=`readOpt SCALEFACTOR "$SCALEFACTOR"`
-    SCALEWIDTH=`readOpt SCALEWIDTH "$SCALEWIDTH"`
-    TRACKS=`readOpt TRACKS "$TRACKS"`
+    CONTAINER=`readOpt CONTAINER "${CONTAINER}"`
+    NAME=`readOpt NAME "${NAME}"`
+    QUANTIZER=`readOpt QUANTIZER "${QUANTIZER}"`
+    SCALEFACTOR=`readOpt SCALEFACTOR "${SCALEFACTOR}"`
+    SCALEWIDTH=`readOpt SCALEWIDTH "${SCALEWIDTH}"`
+    TRACKS=`readOpt TRACKS "${TRACKS}"`
 
     # These will be calculated in the program.
     AUDIO=`readOpt AUDIO`
@@ -146,64 +146,64 @@ readConfig() {
 
 displayVariables() {
     echo "Using these parameters:"
-    echo -n "C:'$CONTAINER' " 
-    echo -n "N:'$NAME' "
-    echo -n "Q:'$QUANTIZER' "
-    echo -n "SF:'$SCALEFACTOR' "
-    echo -n "SW:'$SCALEWIDTH' "
-    echo -n "T:'$TRACKS' "
+    echo -n "C:'${CONTAINER}' " 
+    echo -n "N:'${NAME}' "
+    echo -n "Q:'${QUANTIZER}' "
+    echo -n "SF:'${SCALEFACTOR}' "
+    echo -n "SW:'${SCALEWIDTH}' "
+    echo -n "T:'${TRACKS}' "
 
-    echo -n "A:'$AUDIO' "
-    echo -n "AS:'$AUDIOSIZE' "
-    echo -n "ES:'$ESTIMATESECONDS' "
-    echo -n "V:'$VIDEO' "
-    echo -n "CROP:'$CROP' "
-    echo -n "WD:'$WORKDIR' " 
-    echo -n "FILE:'$FILENAME' " 
+    echo -n "A:'${AUDIO}' "
+    echo -n "AS:'${AUDIOSIZE}' "
+    echo -n "ES:'${ESTIMATESECONDS}' "
+    echo -n "V:'${VIDEO}' "
+    echo -n "CROP:'${CROP}' "
+    echo -n "WD:'${WORKDIR}' " 
+    echo -n "FILE:'${FILENAME}' " 
     echo "" # EOL
     echo "" # NL
 }
 
 initialize() {
-    if [ -z "$WORKDIR" ]
+    if [ -z "${WORKDIR}" ]
     then
         WORKDIR=work-$$
-        writeOpt WORKDIR "$WORKDIR"
+        writeOpt WORKDIR "${WORKDIR}"
     fi
-    LOGDIR=$WORKDIR/logs
+    LOGDIR=${WORKDIR}/logs
 
-    [ -d $LOGDIR ] || mkdir -p $LOGDIR
-    IDENTIFY=$LOGDIR/00-identify.txt 
-    CROPLOG=$LOGDIR/01-cropdetect.log
-    MPLAYERAUDIOLOG=$LOGDIR/02-mplayer-audio.log
-    AUDIOENCLOG=$LOGDIR/03-audioenc.log
-    VIDEOLOG=$LOGDIR/04-video.log
-    MERGELOG=$LOGDIR/05-merge.log
-    COMMANDS=$LOGDIR/commands.txt
+    [ -d ${LOGDIR} ] || mkdir -p ${LOGDIR}
+    IDENTIFY=${LOGDIR}/00-identify.txt 
+    CROPLOG=${LOGDIR}/01-cropdetect.log
+    MPLAYERAUDIOLOG=${LOGDIR}/02-mplayer-audio.log
+    AUDIOENCLOG=${LOGDIR}/03-audioenc.log
+    VIDEOLOG=${LOGDIR}/04-video.log
+    MERGELOG=${LOGDIR}/05-merge.log
+    COMMANDS=${LOGDIR}/commands.txt
 
-    [ "$NAME" ] || NAME=$INPUT
+    [ "${NAME}" ] || NAME=${INPUT}
     FILENAME=`echo ${NAME} | tr " 	" "__"`
-    if [ "$CONTAINER" = "avi" ]
+    if [ "${CONTAINER}" = "avi" ]
     then
-        FILENAME="$FILENAME.avi"
+        FILENAME="${FILENAME}.avi"
     else
-        FILENAME="$FILENAME.mkv"
+        FILENAME="${FILENAME}.mkv"
     fi
-    if [ -s "$FILENAME" ]
+    if [ -s "${FILENAME}" ]
     then
-        FILENAME="$FILENAME.new"
+        FILENAME="${FILENAME}.new"
     fi
-    [ "$TRACKS" ] || TRACKS=0
+    [ "${TRACKS}" ] || TRACKS=0
 }
 
 checkbins() {
     BINS="mplayer mencoder oggenc mkvmerge mkfifo lame" # Avibox
-    for i in $BINS
+    for i in ${BINS}
     do
-        BIN=`which $i`
-        if [ -z "$BIN" ]
+        BIN=`which ${i}`
+        if [ -z "${BIN}" ]
         then
-            echo "$i not found: Please install."
+            echo "${i} not found: Please install."
             exit
         fi
     done
@@ -211,8 +211,8 @@ checkbins() {
 
 usage() {
     echo "Usage:
-    `basename $0` <input-file> -x <crop> -t <title> -z <scalefactor> -a <audio id> -d <dvd-dev> -IR
-    Ex.: $0 -i VR_MOVIE.VRO -S 260000 -E 2:00:40 -s 700 -t \"Movie Name\"
+    `basename ${0}` <input-file> -x <crop> -t <title> -z <scalefactor> -a <audio id> -d <dvd-dev> -IR
+    Ex.: ${0} -i VR_MOVIE.VRO -S 260000 -E 2:00:40 -s 700 -t \"Movie Name\"
     <input-file> - The file to encode. MANDATORY.
     -x <crop>       - Crop with xxx:yyy:aa:bb. If not given, than autocrop.
     -t <name>       - The name of the Movie.
@@ -234,48 +234,48 @@ usage() {
 
 readOpt() {
     RET=""
-    if [ -s $CONFIG ]
+    if [ -s ${CONFIG} ]
     then
-        RET=`grep "^$1=" $CONFIG | sed "s|^$1=||"`
+        RET=`grep "^${1}=" ${CONFIG} | sed "s|^${1}=||"`
     fi
-    if [ "$RET" ] 
+    if [ "${RET}" ] 
     then
-        echo $RET
+        echo ${RET}
     else
-        echo $2
+        echo ${2}
     fi
 }
 
 writeOpt() {
-    if [ -s $CONFIG ]
+    if [ -s ${CONFIG} ]
     then
-        grep -v "^$1=" $CONFIG > $CONFIG.tmp
+        grep -v "^${1}=" ${CONFIG} > ${CONFIG}.tmp
     fi
-    [ "$2" ] && echo "$1=$2" >> $CONFIG.tmp
-    mv $CONFIG.tmp $CONFIG
+    [ "${2}" ] && echo "${1}=${2}" >> ${CONFIG}.tmp
+    mv ${CONFIG}.tmp ${CONFIG}
 }
 
 detectCropByTime() {
     # Since 4.4.3 not working with -sb Startbyte     GRRRRRRRrrrr
     MPLAYERCROP="-nolirc -vo null -nosound -nocache -vf cropdetect -frames 12 -speed 100"
-    if [ -z "$ESTIMATESECONDS" ]
+    if [ -z "${ESTIMATESECONDS}" ]
     then
-        ESTIMATESECONDS=`grep ID_LENGTH $IDENTIFY | cut -f2 -d= | cut -f1 -d.`
-        writeOpt ESTIMATESECONDS "$ESTIMATESECONDS"
+        ESTIMATESECONDS=`grep ID_LENGTH ${IDENTIFY} | cut -f2 -d= | cut -f1 -d.`
+        writeOpt ESTIMATESECONDS "${ESTIMATESECONDS}"
     fi
-    [ "$ESTIMATESECONDS" ] || return 1
-    STEPS=`echo $ESTIMATESECONDS/10 | bc`
-    echo "Detecting CROP by time. Analysing one frame every ${STEPS} seconds. Movie Lenght: $ESTIMATESECONDS"
+    [ "${ESTIMATESECONDS}" ] || return 1
+    STEPS=`echo ${ESTIMATESECONDS}/10 | bc`
+    echo "Detecting CROP by time. Analysing one frame every ${STEPS} seconds. Movie Lenght: ${ESTIMATESECONDS}"
     # myStartPos=0
-    # myEndPos=$ESTIMATESECONDS
+    # myEndPos=${ESTIMATESECONDS}
     rm -f ${CROPLOG}
     mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT} ${DEBUG2} > ${CROPLOG} 2>&1
     CROP=`grep "crop=" ${CROPLOG} | tail -1 | cut -f2 -d= | cut -f1 -d")"`
-    x=`echo $CROP | cut -f 1 -d:`
-    y=`echo $CROP | cut -f 2 -d:`
-    if [ $x -gt 0 -a $y -gt 0 ]
+    x=`echo ${CROP} | cut -f 1 -d:`
+    y=`echo ${CROP} | cut -f 2 -d:`
+    if [ ${x} -gt 0 -a ${y} -gt 0 ]
     then
-        writeOpt CROP "$CROP"
+        writeOpt CROP "${CROP}"
     else 
         CROP=""
     fi
@@ -285,7 +285,7 @@ detectCrop() {
     # Find Crop:
     [ -z "${CROP}" ] && detectCropByTime
 
-    if [ -z "$CROP" ]
+    if [ -z "${CROP}" ]
     then
         echo "CROP could not be detected. Try to detect it manualy using"
         echo " mplayer -vf cropdetect and "
@@ -309,45 +309,47 @@ encodeAudio() {
     # -channels 2 = play audio in to channels
     # (unused: only DVD) -aid 137 = Audio ID, to play the right language }}}
     MPLAYEROPTS="-nolirc -nocache -noframedrop -mc 0 -vc null -vo null -af volnorm=1 -channels 2"
-    FIFO=$WORKDIR/audio.fifo
-    if [ "$CONTAINER" == "avi" ]
+    FIFO=${WORKDIR}/audio.fifo
+    if [ "${CONTAINER}" == "avi" ]
     then
-        [ -z "$AUDIO" ] && AUDIO=audio.$$.mp3 && writeOpt AUDIO "$AUDIO"
+        [ -z "${AUDIO}" ] && AUDIO=audio.mp3 && writeOpt AUDIO "${AUDIO}"
     else
-        [ -z "$AUDIO" ] && AUDIO=audio.$$.ogg && writeOpt AUDIO "$AUDIO"
+        [ -z "${AUDIO}" ] && AUDIO=audio.ogg && writeOpt AUDIO "${AUDIO}"
     fi
 
-    rm -f $WORKDIR/audio.fifo
+    rm -f ${WORKDIR}/audio.fifo
 
-    [ "$AUDIOSIZE" ] || AUDIOSIZE=0
-    for track in $TRACKS
+    [ "${AUDIOSIZE}" ] || AUDIOSIZE=0
+    for track in ${TRACKS}
     do
-        OUTPUT=$WORKDIR/$track-$AUDIO
-        RC=`readOpt $OUTPUT`
-        if [ "$RC" == "Done" -a -s $OUTPUT ]
+        OUTPUT=${WORKDIR}/$track-${AUDIO}
+        RC=`readOpt ${OUTPUT}`
+        if [ "${RC}" == "Done" -a -s ${OUTPUT} ]
         then
-            echo "Audio $OUTPUT present, skiping encoding."
+            echo "Audio ${OUTPUT} present, skiping encoding."
         else
             echo "Encoding Audio track $track."
             [ "$track" -ne "0" ] && AID="-aid $track"
 
-            echo    "mkfifo ${FIFO}" >> $COMMANDS
+            echo    "mkfifo ${FIFO}" >> ${COMMANDS}
             ${DEBUG} mkfifo ${FIFO}
 
-            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}" >> $COMMANDS
-            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT} ${DEBUG2} >> $MPLAYERAUDIOLOG 2>&1 &
+            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}" >> ${COMMANDS}
+            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT} ${DEBUG2} >> ${MPLAYERAUDIOLOG} 2>&1 &
 
-            if [ "$CONTAINER" == "avi" ]
+            if [ "${CONTAINER}" == "avi" ]
             then
-                lame --nohist -h -r -s 48,0 --preset fast medium ${FIFO} ${OUTPUT} >> ${AUDIOENCLOG} 2>&1
+                MP3ENCOPTS="--nohist -v -V 6 -h"
+                echo "lame ${MP3ENCOPTS} ${FIFO} ${OUTPUT} " >> ${COMMANDS} 
+                ${DEBUG} lame ${MP3ENCOPTS} ${FIFO} ${OUTPUT} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
             else
-                OGGENCOPTS="-q 3"
-                echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> $COMMANDS
+                OGGENCOPTS="-q 4"
+                echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> ${COMMANDS}
                 ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
             fi
-            [ $? -eq 0 ] && writeOpt $OUTPUT "Done"
+            [ $? -eq 0 ] && writeOpt ${OUTPUT} "Done"
             ${DEBUG} rm ${FIFO} ${DEBUG2}
-            sumAudioSize $OUTPUT
+            sumAudioSize ${OUTPUT}
         fi
     done
 }
@@ -355,21 +357,21 @@ encodeAudio() {
 sumAudioSize() {
     tAUDIOSIZE=`ls -l ${1} | awk '{print $5}'`
     AUDIOSIZE=`echo "scale=2;${AUDIOSIZE}+${tAUDIOSIZE}/1024/1024" | bc`
-    if [ "$AUDIOSIZE" == "0" ]
+    if [ "${AUDIOSIZE}" == "0" ]
     then
         echo "Error: Audio not encoded"
         exit 1
     fi
 
     echo " Audio size is now ${AUDIOSIZE} Mb"
-    writeOpt AUDIOSIZE "$AUDIOSIZE"
+    writeOpt AUDIOSIZE "${AUDIOSIZE}"
 }
 
 getAspect() {
-    ASPECT=`grep ID_VIDEO_ASPECT $IDENTIFY | cut -f 2 -d = | cut -f 1 -d .`
+    ASPECT=`grep ID_VIDEO_ASPECT ${IDENTIFY} | cut -f 2 -d = | cut -f 1 -d .`
     NUMERATOR=1
     DENOMINATOR=1
-    case $ASPECT in
+    case ${ASPECT} in
         "0")
             NUMERATOR=4
             DENOMINATOR=3
@@ -383,30 +385,30 @@ getAspect() {
 
 setScale() {
     # Scale without a bitrate
-    RAW_W=`grep ID_VIDEO_WIDTH $IDENTIFY | cut -f 2 -d =`
-    RAW_H=`grep ID_VIDEO_HEIGHT $IDENTIFY | cut -f 2 -d =`
+    RAW_W=`grep ID_VIDEO_WIDTH ${IDENTIFY} | cut -f 2 -d =`
+    RAW_H=`grep ID_VIDEO_HEIGHT ${IDENTIFY} | cut -f 2 -d =`
     getAspect
-    CROP_W=`echo $CROP | cut -f 1 -d :`
-    CROP_H=`echo $CROP | cut -f 2 -d :`
+    CROP_W=`echo ${CROP} | cut -f 1 -d :`
+    CROP_H=`echo ${CROP} | cut -f 2 -d :`
 
     # ratio = crop_width / (gdouble) crop_height * raw_height / raw_width * anumerator / adenominator;
-    RATIO=`echo "scale=4; $CROP_W / $CROP_H * $RAW_H / $RAW_W * $NUMERATOR / $DENOMINATOR" | bc `
-    echo "Video info: ${RAW_W}x${RAW_H} ($NUMERATOR:$DENOMINATOR) crop ${CROP_W}x${CROP_H} ratio: $RATIO"
+    RATIO=`echo "scale=4; ${CROP_W} / ${CROP_H} * ${RAW_H} / ${RAW_W} * ${NUMERATOR} / ${DENOMINATOR}" | bc `
+    echo "Video info: ${RAW_W}x${RAW_H} (${NUMERATOR}:${DENOMINATOR}) crop ${CROP_W}x${CROP_H} ratio: ${RATIO}"
 
-    SCALE_W=$CROP_W
-    [ -n "$SCALEWIDTH" ] && [ $SCALEWIDTH -lt $CROP_W ] && SCALE_W=$SCALEWIDTH
-    SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
-    echo "Normal scaling to: $SCALE_W x $SCALE_H"
+    SCALE_W=${CROP_W}
+    [ -n "${SCALEWIDTH}" ] && [ ${SCALEWIDTH} -lt ${CROP_W} ] && SCALE_W=${SCALEWIDTH}
+    SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
+    echo "Normal scaling to: ${SCALE_W} x ${SCALE_H}"
 
-    SCALE_W=`echo $SCALE_W*$SCALEFACTOR/16*16 | bc` 
-    SCALE_H=`echo "$SCALE_W/$RATIO/16*16" | bc`
-    echo "Factor ($SCALEFACTOR) scaling to: $SCALE_W x $SCALE_H"
+    SCALE_W=`echo ${SCALE_W}*${SCALEFACTOR}/16*16 | bc` 
+    SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
+    echo "Factor (${SCALEFACTOR}) scaling to: ${SCALE_W} x ${SCALE_H}"
 
-    SCALE="$SCALE_W:$SCALE_H"
+    SCALE="${SCALE_W}:${SCALE_H}"
 }
 
 encodeVideo() {
-    [ -z "$VIDEO" ] && VIDEO=$WORKDIR/video.$$.avi && writeOpt VIDEO "$VIDEO"
+    [ -z "${VIDEO}" ] && VIDEO=${WORKDIR}/video.avi && writeOpt VIDEO "${VIDEO}"
 
     # Explanation: {{{
     # -nocache = set no cache
@@ -425,12 +427,12 @@ encodeVideo() {
     # harddup = don't drop duplicate frames.
     # SCALE removed from vf "-vf scale..."
     VFILTER="crop=${CROP},hqdn3d=2:1:2,harddup"
-    [ "${SCALE}" ] && VFILTER="$VFILTER,scale=${SCALE}"
+    [ "${SCALE}" ] && VFILTER="${VFILTER},scale=${SCALE}"
 
-    if [ "$CONTAINER" == "avi" ] 
+    if [ "${CONTAINER}" == "avi" ] 
     then
-        XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=$QUANTIZER:threads=2"
-        CODECOPTS="-ovc xvid -xvidencopts $XVIDOPTS"
+        XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2"
+        CODECOPTS="-ovc xvid -xvidencopts ${XVIDOPTS}"
     else
     # Explanation: {{{
     # subq=5 = good quality subpel. encode a bit faster
@@ -444,9 +446,9 @@ encodeVideo() {
     # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
     # bitrate=${BITRATE} = the target video bitrate
     # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
-        XQUANT=`echo "scale=1; 12+6*l($QUANTIZER)/l(2)" | bc -l`
+        XQUANT=`echo "scale=1; 12+6*l(${QUANTIZER})/l(2)" | bc -l`
         X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
-        X264OPTS="$X264OPTS:crf=${XQUANT}:threads=2"
+        X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=2"
         CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
     fi
 
@@ -454,18 +456,18 @@ encodeVideo() {
     MENCODEROPTS="${MENCODEROPTS} ${CODECOPTS}"
 
     # Encode Video
-    VIDEODONE=`readOpt $VIDEO`
-    if [ "$VIDEODONE" == "Done" -a -s ${VIDEO} ]
+    VIDEODONE=`readOpt ${VIDEO}`
+    if [ "${VIDEODONE}" == "Done" -a -s ${VIDEO} ]
     then
         echo "1st pass already done. Skipping."
     else
         VIDEODONE=""
         echo "ENCONDING the video..."
         echo    "mencoder ${MENCODEROPTS} -vf ${VFILTER} -o ${VIDEO} ${INPUT}" \
-        >> $COMMANDS
+        >> ${COMMANDS}
         ${DEBUG} mencoder ${MENCODEROPTS} -vf ${VFILTER} \
-            -o ${VIDEO} ${INPUT} ${DEBUG2} > $VIDEOLOG 2>&1
-        [ $? -eq 0 ] && writeOpt $VIDEO "Done" && VIDEODONE=Done
+            -o ${VIDEO} ${INPUT} ${DEBUG2} > ${VIDEOLOG} 2>&1
+        [ $? -eq 0 ] && writeOpt ${VIDEO} "Done" && VIDEODONE=Done
     fi
 }
 
@@ -477,59 +479,59 @@ mergeStream() {
 # -D = no video
 # --language 0:ger = Audio stream 0 is german (can be used more times)
 # --sync 0:-100 Delay Audio in -100 ms (skip 100ms of video frames) }}}
-    if [ "$VIDEODONE" == "Done" ]
+    if [ "${VIDEODONE}" == "Done" ]
     then
         echo "Merging streams"
         MERGEOPTS="-o ${FILENAME} --command-line-charset UTF-8 -d 0 -A -S ${VIDEO}"
         AUDIOCODE=""
-        for track in $TRACKS
+        for track in ${TRACKS}
         do
             lang=`getLanguageOfTrack $track`
             if [ "${CONTAINER}" == "avi" ]
             then
-                AUDIOCODE="$AUDIOCODE $WORKDIR/$track-${AUDIO}"
+                AUDIOCODE="${AUDIOCODE} ${WORKDIR}/$track-${AUDIO}"
             else
-                AUDIOCODE="$AUDIOCODE --language 0:$lang --sync 0:$DELAY -D -S $WORKDIR/$track-${AUDIO}"
+                AUDIOCODE="${AUDIOCODE} --language 0:$lang --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
             fi
         done
-        echo    "mkvmerge $MERGEOPTS $AUDIOCODE --title \"${NAME}\"" >> $COMMANDS
+        echo    "mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title \"${NAME}\"" >> ${COMMANDS}
         if [ "${CONTAINER}" == "avi" ]
         then
             avibox -o ${FILENAME} -n -i ${VIDEO} ${AUDIOCODE}  -f XVID 
         else
-            ${DEBUG} mkvmerge $MERGEOPTS $AUDIOCODE --title "${NAME}" > $MERGELOG 2>&1
+            ${DEBUG} mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title "${NAME}" > ${MERGELOG} 2>&1
         fi
     fi
 }
 
 getDVDInfos() {
-    if [ ! -s mapping-$DVDTITLE.txt ]
+    if [ ! -s mapping-${DVDTITLE}.txt ]
     then
-        echo "Getting DVD Language Mapping for Title $DVDTITLE"
-        mplayer -frames 2 -vo null -ao null -identify $DVD dvd://$DVDTITLE 2> /dev/null | grep "^ID_" > mapping-$DVDTITLE.txt
+        echo "Getting DVD Language Mapping for Title ${DVDTITLE}"
+        mplayer -frames 2 -vo null -ao null -identify ${DVD} dvd://${DVDTITLE} 2> /dev/null | grep "^ID_" > mapping-${DVDTITLE}.txt
     fi
     exit 0
 }
 
 getStreamInfos() {
-    if [ ! -s $IDENTIFY ]
+    if [ ! -s ${IDENTIFY} ]
     then
         echo "Getting Stream Infos"
-        mplayer -frames 0 -vo null -ao null -identify ${INPUT} 2> /dev/null | grep "^ID_" > $IDENTIFY
+        mplayer -frames 0 -vo null -ao null -identify ${INPUT} 2> /dev/null | grep "^ID_" > ${IDENTIFY}
     fi
 }
 
 getLanguageOfTrack() {
-    if [ -s mapping-$DVDTITLE.txt ]
+    if [ -s mapping-${DVDTITLE}.txt ]
     then
-        grep "ID_AID_${1}_LANG=" mapping-$DVDTITLE.txt | cut -f 2 -d=
+        grep "ID_AID_${1}_LANG=" mapping-${DVDTITLE}.txt | cut -f 2 -d=
     else
         echo "de"
     fi
 }
 
 rippDVD() {
-    mplayer -dumpstream -noframedrop -nocache -dumpfile dvddump-$DVDTITLE.vob $DVD dvd://$DVDTITLE 
+    mplayer -dumpstream -noframedrop -nocache -dumpfile dvddump-${DVDTITLE}.vob ${DVD} dvd://${DVDTITLE} 
     getDVDInfos
 }
 
