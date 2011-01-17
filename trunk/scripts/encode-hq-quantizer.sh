@@ -454,6 +454,7 @@ encodeVideo() {
         XQUANT=`echo "scale=1; 12+6*l(${QUANTIZER})/l(2)" | bc -l`
         X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
         # From http://www.mplayerhq.hu/DOCS/HTML/en/menc-feat-x264.html
+        # For version (1.0rc2 r26940) TODO Handle this automagicaly!
         X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:b_pyramid:weight_b"
         X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=2"
         CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
