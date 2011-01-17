@@ -51,7 +51,8 @@ export SCALEFACTOR=1
 
 logAndRun() {
     echo "[`date --iso-8601=seconds`] $@" >> ${COMMANDS}
-    $@
+    "$@"
+    [ $? -eq 0 ] || (echo "ERROR: Aborting" && exit 1)
 }
 
 parseOpts() {
@@ -509,10 +510,11 @@ mergeStream() {
             else
                 MERGER="mencoder -o ${FILENAME} -mc 0 -noskip -ovc copy -oac copy -audiofile ${AUDIOCODE} ${VIDEO}"
             fi
+            logAndRun ${MERGER} > ${MERGELOG} 2>&1
         else
-            MERGER="mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title \"${NAME}\""
+            MERGER="mkvmerge ${MERGEOPTS} ${AUDIOCODE}"
+            logAndRun ${MERGER} --title "${NAME}" > ${MERGELOG} 2>&1
         fi
-        logAndRun ${MERGER} > ${MERGELOG} 2>&1
     fi
 }
 
