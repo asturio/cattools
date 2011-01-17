@@ -39,10 +39,6 @@
 
 # }}}
 
-# Uncomment this do just echo the commands
-#DEBUG=echo
-# Uncomment this do echo to stdout
-#DEBUG2="#"
 # TODO: mplayer with start and endtime
 #set -x
 export LANG=C
@@ -52,6 +48,11 @@ export LANG=C
 export CONTAINER=avi
 export QUANTIZER=2
 export SCALEFACTOR=1
+
+logAndRun() {
+    echo "[`date --iso-8601=seconds`] $@" >> ${COMMANDS}
+    $@
+}
 
 parseOpts() {
     args=`getopt -n encode-hq.sh -o x:t:a:d:D:T:q:c:z:w:IRh -- "$@"`
@@ -269,7 +270,8 @@ detectCropByTime() {
     # myStartPos=0
     # myEndPos=${ESTIMATESECONDS}
     rm -f ${CROPLOG}
-    mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT} ${DEBUG2} > ${CROPLOG} 2>&1
+    CMD="mplayer ${MPLAYERCROP} -sstep ${STEPS} ${INPUT}"
+    logAndRun ${CMD} > ${CROPLOG} 2>&1
     CROP=`grep "crop=" ${CROPLOG} | tail -1 | cut -f2 -d= | cut -f1 -d")"`
     x=`echo ${CROP} | cut -f 1 -d:`
     y=`echo ${CROP} | cut -f 2 -d:`
@@ -331,24 +333,22 @@ encodeAudio() {
             echo "Encoding Audio track $track."
             [ "$track" -ne "0" ] && AID="-aid $track"
 
-            echo    "mkfifo ${FIFO}" >> ${COMMANDS}
-            ${DEBUG} mkfifo ${FIFO}
+            logAndRun mkfifo ${FIFO}
 
-            echo    "mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}" >> ${COMMANDS}
-            ${DEBUG} mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT} ${DEBUG2} >> ${MPLAYERAUDIOLOG} 2>&1 &
+            CMD="mplayer ${MPLAYEROPTS} ${AID} -ao pcm:fast:waveheader:file=${FIFO} ${INPUT}"
+            logAndRun ${CMD} >> ${MPLAYERAUDIOLOG} 2>&1 &
 
             if [ "${CONTAINER}" == "avi" ]
             then
                 MP3ENCOPTS="--nohist -v -V 6 -h"
-                echo "lame ${MP3ENCOPTS} ${FIFO} ${OUTPUT} " >> ${COMMANDS} 
-                ${DEBUG} lame ${MP3ENCOPTS} ${FIFO} ${OUTPUT} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
+                ENCODER="lame ${MP3ENCOPTS} ${FIFO} ${OUTPUT}"
             else
                 OGGENCOPTS="-q 4"
-                echo    "oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}" >> ${COMMANDS}
-                ${DEBUG} oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO} ${DEBUG2} >> ${AUDIOENCLOG} 2>&1
+                ENCODER="oggenc ${OGGENCOPTS} -o ${OUTPUT} ${FIFO}"
             fi
+            logAndRun ${ENCODER} >> ${AUDIOENCLOG} 2>&1
             [ $? -eq 0 ] && writeOpt ${OUTPUT} "Done"
-            ${DEBUG} rm ${FIFO} ${DEBUG2}
+            logAndRun rm ${FIFO}
             sumAudioSize ${OUTPUT}
         fi
     done
@@ -435,19 +435,26 @@ encodeVideo() {
         CODECOPTS="-ovc xvid -xvidencopts ${XVIDOPTS}"
     else
     # Explanation: {{{
-    # subq=5 = good quality subpel. encode a bit faster
-    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion (CHANGED in new mplayer)
+    # subq=5 = good quality subpel. encode a bit faster. subpel Qualy.
+    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion 
+    #   (CHANGED in new mplayer)
     # weight_b = use weighted B-Frames
     # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
     # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
-    # mixed_refs = 8x8 and 16x8 motion partition can use different reference frames.
     # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
     # trellis=1 = Enable rate-distortion optimal quantization for final encode
     # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
     # bitrate=${BITRATE} = the target video bitrate
-    # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame }}}
+    # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame 
+    # deblock=-1,-1 = deblock filter
+    # b_adapt=2 = How many b-frames will be used to reach bframes
+    # me=umr = Fullpixel motion detection algorithm.
+    # merange=16 = Radius for me=umr
+    # }}}
         XQUANT=`echo "scale=1; 12+6*l(${QUANTIZER})/l(2)" | bc -l`
         X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
+        # From http://www.mplayerhq.hu/DOCS/HTML/en/menc-feat-x264.html
+        X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:b_pyramid:weight_b"
         X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=2"
         CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
     fi
@@ -459,14 +466,12 @@ encodeVideo() {
     VIDEODONE=`readOpt ${VIDEO}`
     if [ "${VIDEODONE}" == "Done" -a -s ${VIDEO} ]
     then
-        echo "1st pass already done. Skipping."
+        echo "Video already done. Skipping."
     else
         VIDEODONE=""
         echo "ENCONDING the video..."
-        echo    "mencoder ${MENCODEROPTS} -vf ${VFILTER} -o ${VIDEO} ${INPUT}" \
-        >> ${COMMANDS}
-        ${DEBUG} mencoder ${MENCODEROPTS} -vf ${VFILTER} \
-            -o ${VIDEO} ${INPUT} ${DEBUG2} > ${VIDEOLOG} 2>&1
+        CMD="mencoder ${MENCODEROPTS} -vf ${VFILTER} -o ${VIDEO} ${INPUT}"
+        logAndRun ${CMD} > ${VIDEOLOG} 2>&1
         [ $? -eq 0 ] && writeOpt ${VIDEO} "Done" && VIDEODONE=Done
     fi
 }
@@ -494,13 +499,19 @@ mergeStream() {
                 AUDIOCODE="${AUDIOCODE} --language 0:$lang --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
             fi
         done
-        echo    "mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title \"${NAME}\"" >> ${COMMANDS}
         if [ "${CONTAINER}" == "avi" ]
         then
-            avibox -o ${FILENAME} -n -i ${VIDEO} ${AUDIOCODE}  -f XVID 
+            MERGER=`which avibox`
+            if [ "$MERGER" ] 
+            then
+                MERGER="avibox -o ${FILENAME} -n -i ${VIDEO} ${AUDIOCODE}  -f XVID"
+            else
+                MERGER="mencoder -o ${FILENAME} -mc 0 -noskip -ovc copy -oac copy -audiofile ${AUDIOCODE} ${VIDEO}"
+            fi
         else
-            ${DEBUG} mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title "${NAME}" > ${MERGELOG} 2>&1
+            MERGER="mkvmerge ${MERGEOPTS} ${AUDIOCODE} --title \"${NAME}\""
         fi
+        logAndRun ${MERGER} > ${MERGELOG} 2>&1
     fi
 }
 
