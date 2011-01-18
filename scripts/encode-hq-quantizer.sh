@@ -56,7 +56,7 @@ logAndRun() {
 }
 
 parseOpts() {
-    args=`getopt -n encode-hq.sh -o x:t:a:d:D:T:q:c:z:w:IRh -- "$@"`
+    args=`getopt -n encode-hq.sh -o x:t:a:D:q:c:z:w:IRT:d:h -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
@@ -89,11 +89,7 @@ parseOpts() {
         "-a") TRACKS="${TRACKS} ${2}"; shift # Audio Tracks
             writeOpt TRACKS "${TRACKS}"
             ;;
-        "-d") DVD="-dvd-device ${2}"; shift
-            ;;
         "-D") DELAY="${2}"; shift
-            ;;
-        "-T") DVDTITLE=${2}; shift # Title
             ;;
         "-q") QUANTIZER=${2}; 
             writeOpt QUANTIZER "${QUANTIZER}"
@@ -116,10 +112,16 @@ parseOpts() {
             writeOpt SCALEWIDTH "${SCALEWIDTH}"
             writeOpt SCALEFACTOR "1"
             ;;
+        # DVD-Rip
         "-I") getDVDInfos
             ;;
         "-R") rippDVD
             ;;
+        "-T") DVDTITLE=${2}; shift # Title
+            ;;
+        "-d") DVD="-dvd-device ${2}"; shift
+            ;;
+
         "-h") usage
             ;;
         esac
@@ -220,15 +222,17 @@ usage() {
     -t <name>       - The name of the Movie.
     -a <audio id>   - The id of the audio track to encode, multiple -a
                       are allowed. The order will be preserved
-    -d <dvd-device> - Set the DVD-Device. Used with -I or -R
     -D <delay>      - Audio Delay to use
-    -T <title>      - Title number in DVD for use with -R and -I
     -q              - Quantizer (the lower the better, default 2)
     -c              - Container type (avi or mkv). By now only with
     -z              - Scalefactor: scale width with this factor, should be between 0 and 1).
     -w              - Scalewidth: select this width for the movie. 
+
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
+    -T <title>      - Title number in DVD for use with -R and -I
+    -d <dvd-device> - Set the DVD-Device. Used with -I or -R
+
     -h              - This help
     "
     exit 0
