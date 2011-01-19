@@ -56,7 +56,7 @@ logAndRun() {
 }
 
 parseOpts() {
-    args=`getopt -n encode-hq.sh -o x:t:a:D:q:c:z:w:IRT:d:h -- "$@"`
+    args=`getopt -n encode-hq.sh -o x:t:a:D:q:c:z:w:iIRT:d:h -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
@@ -112,6 +112,10 @@ parseOpts() {
             writeOpt SCALEWIDTH "${SCALEWIDTH}"
             writeOpt SCALEFACTOR "1"
             ;;
+        "-i")
+            DEINTERLACE="pp=md"
+            ;;
+
         # DVD-Rip
         "-I") getDVDInfos
             ;;
@@ -164,6 +168,7 @@ displayVariables() {
     echo -n "CROP:'${CROP}' "
     echo -n "WD:'${WORKDIR}' " 
     echo -n "FILE:'${FILENAME}' " 
+    echo -n "DEINT:'${DEINTERLACE}' " 
     echo "" # EOL
     echo "" # NL
 }
@@ -431,7 +436,9 @@ encodeVideo() {
     # hqdn3d=2:1:2 = High Quality/Precision Denoise (better compression, smooth images)
     # harddup = don't drop duplicate frames.
     # SCALE removed from vf "-vf scale..."
-    VFILTER="crop=${CROP},hqdn3d=2:1:2,harddup"
+    
+    [ "${DEINTERLACE}" ] && VFILTER="${DEINTERLACE},"
+    VFILTER="${VFILTER}crop=${CROP},hqdn3d=2:1:2,harddup"
     [ "${SCALE}" ] && VFILTER="${VFILTER},scale=${SCALE}"
 
     if [ "${CONTAINER}" == "avi" ] 
