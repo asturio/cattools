@@ -67,15 +67,28 @@ parseOpts() {
     do
         case "${1}" in
         "--") INPUT=${2}; shift # Input file NEEDED
-              [ "${INPUT}" ] && CONFIG=`basename ${INPUT}`.conf
-              break
+            [ "${INPUT}" ] && CONFIG=`basename ${INPUT}`.conf
+            break
+            ;;
+        "-I"|"-R")
+            RIP=1
+            break;
             ;;
         esac
         shift
     done
-    [ -z "${INPUT}" -o ! -s "${INPUT}" ] && echo "Input Needed!" && usage
 
-    readConfig
+    if [ -z "${RIP}" ]
+    then
+        if [ -z "${INPUT}" -o ! -s "${INPUT}" ] 
+        then
+            echo "Input Needed!"
+            usage
+        fi
+    fi
+
+    [ "${INPUT}" ] && readConfig
+
     eval set -- "$args"
     while [ "${1}" ]
     do
@@ -547,12 +560,17 @@ getStreamInfos() {
 }
 
 getLanguageOfTrack() {
+    RET=""
     if [ -s mapping-${DVDTITLE}.txt ]
     then
-        grep "ID_AID_${1}_LANG=" mapping-${DVDTITLE}.txt | cut -f 2 -d=
-    else
-        echo "de"
+        RET=`grep "ID_AID_${1}_LANG=" mapping-${DVDTITLE}.txt | cut -f 2 -d=` 
+        if [ -z "${RET}" ] 
+        then
+            COUNT=`grep "ID_AID_.*_LANG=" mapping-${DVDTITLE}.txt | wc -l` 
+            [ ${COUNT} -eq 1 ] && RET=`grep "ID_AID_.*_LANG=" mapping-${DVDTITLE}.txt | cut -f 2 -d=` 
+        fi
     fi
+    echo ${RET}
 }
 
 rippDVD() {
