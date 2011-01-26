@@ -333,7 +333,7 @@ encodeAudio() {
     # -af volnorm=1 = normalize audio volume
     # -channels 2 = play audio in to channels
     # (unused: only DVD) -aid 137 = Audio ID, to play the right language }}}
-    MPLAYEROPTS="-nolirc -nocache -noframedrop -mc 0 -vc null -vo null -af volnorm=1 -channels 2"
+    MPLAYEROPTS="-nolirc -nocache -noframedrop -noconfig all -mc 0 -vc null -vo null -af volnorm=1 -channels 2"
     FIFO=${WORKDIR}/audio.fifo
     if [ "${CONTAINER}" == "avi" ]
     then
@@ -456,7 +456,16 @@ encodeVideo() {
 
     if [ "${CONTAINER}" == "avi" ] 
     then
-        XVIDOPTS="quant_type=h263:chroma_opt:vhq=2:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2"
+
+        # 2 pass
+        # -o /dev/null -passlogfile <logfile> quant_type=mpeg:nocartoon:turbo:bitrate=24000000:pass=1
+        # -o <file>    -passlogfile <logfile> quant_type=mpeg:nocartoon:bitrate=24000000:pass=2  
+        # quant_type für kleine bitrate besser h263, sonst mpeg
+        # (no)cartoon - video ist cartoon
+        # turbo= für den 1. pass.
+        # bitrate=24000000 (24000kbit/s) wird automatisch nach unten gekappt???
+        # pass= welcher pass
+        XVIDOPTS="quant_type=h263:chroma_opt:vhq=3:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2:nogmc"
         CODECOPTS="-ovc xvid -xvidencopts ${XVIDOPTS}"
     else
     # Explanation: {{{
@@ -513,14 +522,13 @@ mergeStream() {
     if [ "${VIDEODONE}" == "Done" ]
     then
         echo "Merging streams"
-        MERGEOPTS="-o ${FILENAME} --command-line-charset UTF-8 -d 0 -A -S ${VIDEO}"
         AUDIOCODE=""
         for track in ${TRACKS}
         do
             lang=`getLanguageOfTrack $track`
             if [ "${CONTAINER}" == "avi" ]
             then
-                AUDIOCODE="${AUDIOCODE} ${WORKDIR}/$track-${AUDIO}"
+                AUDIOCODE="${AUDIOCODE} -audiofile ${WORKDIR}/$track-${AUDIO}"
             else
                 AUDIOCODE="${AUDIOCODE} --language 0:$lang --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
             fi
@@ -531,11 +539,16 @@ mergeStream() {
             if [ "$MERGER" ] 
             then
                 MERGER="avibox -o ${FILENAME} -n -i ${VIDEO} ${AUDIOCODE}  -f XVID"
+                logAndRun ${MERGER} > ${MERGELOG} 2>&1
             else
-                MERGER="mencoder -o ${FILENAME} -mc 0 -noskip -ovc copy -oac copy -audiofile ${AUDIOCODE} ${VIDEO}"
+                # mencoder opts
+                MENCODEROPTS="-nocache -noskip -noconfig all -mc 0 -ovc copy -oac copy -ffourcc DX50"
+                MENCODEROPTS="${MENCODEROPTS} -audio-demuxer audio"
+                MERGER="mencoder ${MENCODEROPTS} -o ${FILENAME} ${AUDIOCODE} ${VIDEO}"
+                logAndRun ${MERGER} -info name="${NAME}" > ${MERGELOG} 2>&1
             fi
-            logAndRun ${MERGER} > ${MERGELOG} 2>&1
         else
+            MERGEOPTS="-o ${FILENAME} --command-line-charset UTF-8 -d 0 -A -S ${VIDEO}"
             MERGER="mkvmerge ${MERGEOPTS} ${AUDIOCODE}"
             logAndRun ${MERGER} --title "${NAME}" > ${MERGELOG} 2>&1
         fi
