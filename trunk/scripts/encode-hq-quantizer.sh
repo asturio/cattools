@@ -56,7 +56,7 @@ logAndRun() {
 }
 
 parseOpts() {
-    args=`getopt -n encode-hq.sh -o x:t:a:D:q:c:z:w:iIRT:d:h -- "$@"`
+    args=`getopt -n $0 -o x:t:a:D:q:c:z:w:iIRT:d:h -- "$@"`
     if [ $? -ne 0 ]
     then
         usage
