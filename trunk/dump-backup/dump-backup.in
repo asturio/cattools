@@ -9,7 +9,7 @@
 # Almost all code outside funktions is from me (IIRC).
 #
 # (c) 2001 Some German Linux Magazine (??? - read above)
-# (c) 2001-2010 Claudio Clemens <asturio at gmx dot net>
+# (c) 2001-2011 Claudio Clemens <asturioweb at gmx dot net>
 
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -441,7 +441,6 @@ function unlock() {
 ####################################
 
 THISLEVEL=$1
-
 # Cron doesn't know HOME if run from cron.daily
 HOME=`@GREP@ "^$BACKUPUSER:" /etc/passwd | cut -f6 -d:`
 

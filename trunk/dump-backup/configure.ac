@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([dump-backup],[0.6.0],[asturio@gmx.net])
+AC_INIT([dump-backup],[0.6.1-dev],[asturioweb@gmx.net])
 #AM_INIT_AUTOMAKE([-Wall -Werror])
 AM_INIT_AUTOMAKE([-Wall -Werror])
 

@@ -1,8 +1,8 @@
 Author:
 =======
 Claudio Clemens
-Version: 0.5.8
-Last change: 2010-03-30
+Version: 0.6.0
+Last change: 2010-05-02
 
 Contents:
 =========
@@ -109,7 +109,7 @@ Possible cron-script:
 
 Credits:
 ========
-Claudio Clemens <asturio at gmx dot net>
+Claudio Clemens <asturioweb at gmx dot net>
 
 I have some code from (I think) the German magazine "Linux User", but I'm not
 sure of it, because I've lost the magazine. So if you know were the "difffiles"
@@ -118,7 +118,7 @@ information here. It is also possible, that the magazine was "Linux Magazine"
 or "c't".
 
     dump-backup - creates incremental backups
-    Copyright (C) 1998-2003 Claudio Clemens <asturio at gmx dot net>
+    Copyright (C) 1998-2003 Claudio Clemens <asturioweb at gmx dot net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

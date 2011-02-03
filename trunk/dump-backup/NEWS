@@ -1,3 +1,12 @@
+New for version 0.6.1-dev (SVN):
+    
+    ...
+
+New for version 0.6.0 (2010-05-02):
+
+    Added option for just mirroring the backup.
+    Better parsing of options (fixes mirror bug).
+
 New for version 0.5.8:
 
     Added log in /tmp.

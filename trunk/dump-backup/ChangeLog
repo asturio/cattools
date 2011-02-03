@@ -1,17 +1,35 @@
-2010-03-30 Claudio André Till Clemens <asturio@gmx.net>
+2011-02-03 Claudio André Till Clemens <asturioweb@gmx.net>
 
-	* dump-backup: Log to /tmp. difffiles improved. Should generate
-	better .new-*, .changed-* and .deleted-* files. Added locking to avoid concurent runs.
+	* all: changed email address.
+	* ChangeLog, NEWS: Added missing information.
+	* README: Updated to version 0.6.0.
+	* configure.ac: New Version opened (0.6.1-dev).
+
+2010-11-27 Claudio André Till Clemens <asturioweb@gmx.net>
+
+	* dump-backup: read arguments earlier (revert change done in 2010-03-30).
+
+2010-05-02 Claudio André Till Clemens <asturioweb@gmx.net>
+
+	* version: 0.6.0
+	* dump-backup: Fix mirror bug. Configuration must be read before the
+	parameters are parsed.
+
+2010-03-30 Claudio André Till Clemens <asturioweb@gmx.net>
+
+	* dump-backup: Log to /tmp. difffiles improved. Should generate better
+	.new-*, .changed-* and .deleted-* files. Added locking to avoid
+	concurent runs.
 	* configute.ac: New Version. 0.5.8
 	* NEWS: Updated to version 0.5.8
 	* README: Updated to version 0.5.8. Fixed a little typo
 
 
-2007-08-17 Claudio André Till Clemens <asturio@gmx.net>
+2007-08-17 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* dump-backup: Use RSA Key instead of DSA for mirror
 
-2007-08-16 Claudio André Till Clemens <asturio@gmx.net>
+2007-08-16 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* dump-backup: Added myzdiff, because zdiff don't work in some linux
 	distros.
@@ -21,50 +39,50 @@
 	* dump-backup: Added autotools support
 	* NEWS: Updated
 
-2004-04-14 Claudio André Till Clemens <asturio@gmx.net>
+2004-04-14 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.5b)
 	* dump-backup: Defined a LASTLEVEL. So Everytime you make a Backup, the
 	script will backup from the given LEVEL trough the LASTLEVEL, so you
 	should get smaller backups.
 
-2004-03-22 Claudio André Till Clemens <asturio@gmx.net>
+2004-03-22 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.5a)
 	* dump-backup: Little Mirror bug fixed: The script should find the key
 	know without problems.  Home is set now. Don't forget to reconfigure.
 
-2004-03-15 Claudio André Till Clemens <asturio@gmx.net>
+2004-03-15 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.4)
 	* dump-backup: First release with mirroring.  A configuration engine was
 	added (--config)
 
-2004-03-02 Claudio André Till Clemens <asturio@gmx.net>
+2004-03-02 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.3a)
 	* dump-backup: Removed warning about "/" from paths. Create a LATEST
 	list for the latest Files
 
-2004-01-28 Claudio André Till Clemens <asturio@gmx.net>
+2004-01-28 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.2)
 	* dump-backup: Added support for exclude pattern. Now some backups could
 	get smaller.
 
-2003-08-27 Claudio André Till Clemens <asturio@gmx.net>
+2003-08-27 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* version: (0.5.1)
 	* dump-backup: Added GPL Note.
 
-2003-04-16 Claudio André Till Clemens <asturio@gmx.net>
+2003-04-16 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* dump-backup: Updated README, fixed copyright.
 	* dump-backup: Implemented verbose index, some code cleanup.
 	* dump-backup: Changed the getfiles command line to compare the backups
 	of LEVEL and LEVEL-1 (since it makes more sense).
 
-2003-02-22 Claudio André Till Clemens <asturio@gmx.net>
+2003-02-22 Claudio André Till Clemens <asturioweb@gmx.net>
 
 	* dump-backup: Optimization on date -I: invoke only once.
 	* dump-backup: Make backup files chmod 600.
