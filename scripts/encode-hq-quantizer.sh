@@ -39,7 +39,8 @@
 
 # }}}
 
-# TODO: mplayer with start and endtime
+# TODO: mplayer with start and endtime.
+# TODO: converting avi2mkv: Problem with detect crop. and Aspect.
 #set -x
 export LANG=C
 
@@ -282,7 +283,7 @@ writeOpt() {
 
 detectCropByTime() {
     # Since 4.4.3 not working with -sb Startbyte     GRRRRRRRrrrr
-    MPLAYERCROP="-nolirc -vo null -nosound -nocache -vf cropdetect -frames 12 -speed 100"
+    MPLAYERCROP="-nolirc -nojoystick -vo null -nosound -nocache -vf cropdetect -frames 12 -speed 100"
     if [ -z "${ESTIMATESECONDS}" ]
     then
         ESTIMATESECONDS=`grep ID_LENGTH ${IDENTIFY} | cut -f2 -d= | cut -f1 -d.`
@@ -328,13 +329,13 @@ encodeAudio() {
     # -nocache = turn off caching
     # -noframedrop = read all the frames
     # -mc 0 = no A/V-sync correction
-    # -vc null = no video codec (don't decode video)
+    # -vc null = no video codec (don't decode video) Problem if converting from mkv to avi
     # -vo null = no video output
     # -ao pcm:nowaveheader:file=fifo = output raw-audio to a file
     # -af volnorm=1 = normalize audio volume
     # -channels 2 = play audio in to channels
     # (unused: only DVD) -aid 137 = Audio ID, to play the right language }}}
-    MPLAYEROPTS="-nolirc -nocache -noframedrop -noconfig all -mc 0 -vc null -vo null -af volnorm=1 -channels 2"
+    MPLAYEROPTS="-nolirc -nojoystick -nocache -noframedrop -noconfig all -mc 0 -vo null -af volnorm=1 -channels 2"
     FIFO=${WORKDIR}/audio.fifo
     if [ "${CONTAINER}" == "avi" ]
     then
@@ -538,7 +539,9 @@ mergeStream() {
                     AUDIOCODE="${AUDIOCODE} ${WORKDIR}/$track-${AUDIO}"
                 fi
             else
-                AUDIOCODE="${AUDIOCODE} --language 0:$lang --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
+                local langcode=""
+                [ "x${lang}" != "x" ] && langcode="--language 0:$lang"
+                AUDIOCODE="${AUDIOCODE} $langcode --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
             fi
         done
         if [ "${CONTAINER}" == "avi" ]
