@@ -245,6 +245,7 @@ usage() {
     -c              - Container type (avi or mkv). By now only with
     -z              - Scalefactor: scale width with this factor, should be between 0 and 1).
     -w              - Scalewidth: select this width for the movie. 
+    -i              - Deinterlace
 
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
@@ -448,48 +449,49 @@ encodeVideo() {
 
     # hqdn3d=2:1:2 = High Quality/Precision Denoise (better compression, smooth images)
     # harddup = don't drop duplicate frames.
-    # SCALE removed from vf "-vf scale..."
-    
     [ "${DEINTERLACE}" ] && VFILTER="${DEINTERLACE},"
     VFILTER="${VFILTER}crop=${CROP},hqdn3d=2:1:2,harddup"
     [ "${SCALE}" ] && VFILTER="${VFILTER},scale=${SCALE}"
 
     if [ "${CONTAINER}" == "avi" ] 
     then
-
+        # avi (xvid)
+        # {{{ If we are implementing 2 passes
         # 2 pass
-        # -o /dev/null -passlogfile <logfile> quant_type=mpeg:nocartoon:turbo:bitrate=24000000:pass=1
-        # -o <file>    -passlogfile <logfile> quant_type=mpeg:nocartoon:bitrate=24000000:pass=2  
+        # -o /dev/null -passlogfile <logfile> nocartoon:turbo:bitrate=24000000:pass=1
+        # -o <file>    -passlogfile <logfile> nocartoon:bitrate=24000000:pass=2  
         # quant_type für kleine bitrate besser h263, sonst mpeg
         # (no)cartoon - video ist cartoon
         # turbo= für den 1. pass.
         # bitrate=24000000 (24000kbit/s) wird automatisch nach unten gekappt???
         # pass= welcher pass
-        XVIDOPTS="quant_type=h263:chroma_opt:vhq=3:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2:nogmc"
+        # }}}
+        local quant_type="h263"
+        [ $QUANTIZER -lt 4 ] && quant_type="mpeg" 
+        XVIDOPTS="quant_type=${quant_type}:chroma_opt:vhq=3:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2:nogmc"
         CODECOPTS="-ovc xvid -xvidencopts ${XVIDOPTS}"
-    else
-    # Explanation: {{{
-    # subq=5 = good quality subpel. encode a bit faster. subpel Qualy.
-    # b_pyramid = Use B-Frames as references to predict next frames. Increases compresssion 
-    #   (CHANGED in new mplayer)
-    # weight_b = use weighted B-Frames
-    # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
-    # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
-    # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
-    # trellis=1 = Enable rate-distortion optimal quantization for final encode
-    # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
-    # bitrate=${BITRATE} = the target video bitrate
-    # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame 
-    # deblock=-1,-1 = deblock filter
-    # b_adapt=2 = How many b-frames will be used to reach bframes
-    # me=umr = Fullpixel motion detection algorithm.
-    # merange=16 = Radius for me=umr
-    # }}}
+    else 
+        # mkv (h264)
+        # Explanation: {{{
+        # subq=5 = good quality subpel. encode a bit faster. subpel Qualy.
+        # weight_b = use weighted B-Frames
+        # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
+        # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
+        # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
+        # trellis=1 = Enable rate-distortion optimal quantization for final encode
+        # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
+        # bitrate=${BITRATE} = the target video bitrate
+        # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame 
+        # deblock=-1,-1 = deblock filter
+        # b_adapt=2 = How many b-frames will be used to reach bframes
+        # me=umr = Fullpixel motion detection algorithm.
+        # merange=16 = Radius for me=umr
+        # }}}
         XQUANT=`echo "scale=1; 12+6*l(${QUANTIZER})/l(2)" | bc -l`
         X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
         # From http://www.mplayerhq.hu/DOCS/HTML/en/menc-feat-x264.html
         # For version (1.0rc2 r26940) TODO Handle this automagicaly!
-        X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:b_pyramid:weight_b"
+        X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:weight_b"
         X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=2"
         CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
     fi
@@ -528,14 +530,19 @@ mergeStream() {
             lang=`getLanguageOfTrack $track`
             if [ "${CONTAINER}" == "avi" ]
             then
-                AUDIOCODE="${AUDIOCODE} -audiofile ${WORKDIR}/$track-${AUDIO}"
+                MERGER=`which avibox`
+                if [ "x${MERGER}" == "x" ]
+                then
+                    AUDIOCODE="${AUDIOCODE} -audiofile ${WORKDIR}/$track-${AUDIO}"
+                else
+                    AUDIOCODE="${AUDIOCODE} ${WORKDIR}/$track-${AUDIO}"
+                fi
             else
                 AUDIOCODE="${AUDIOCODE} --language 0:$lang --sync 0:${DELAY} -D -S ${WORKDIR}/$track-${AUDIO}"
             fi
         done
         if [ "${CONTAINER}" == "avi" ]
         then
-            MERGER=`which avibox`
             if [ "$MERGER" ] 
             then
                 MERGER="avibox -o ${FILENAME} -n -i ${VIDEO} ${AUDIOCODE}  -f XVID"
