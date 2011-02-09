@@ -468,31 +468,31 @@ encodeVideo() {
         # }}}
         local quant_type="h263"
         [ $QUANTIZER -lt 4 ] && quant_type="mpeg" 
-        XVIDOPTS="quant_type=${quant_type}:chroma_opt:vhq=3:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=2:nogmc"
+        XVIDOPTS="quant_type=${quant_type}:chroma_opt:vhq=3:bvhq=1:autoaspect:max_bframes=2:noqpel:trellis:nogreyscale:fixed_quant=${QUANTIZER}:threads=0:nogmc"
         CODECOPTS="-ovc xvid -xvidencopts ${XVIDOPTS}"
     else 
         # mkv (h264)
         # Explanation: {{{
-        # subq=5 = good quality subpel. encode a bit faster. subpel Qualy.
+        # subq=6 = good+ quality subpel. encode a bit faster. subpel Qualy.
         # weight_b = use weighted B-Frames
         # 8x8dct = Allow macroblock to chose between 8x8 and 4x4. Compress better
-        # frameref=2 = Use 2 Frames to Predict B- and P-frames. OK Quality
+        # frameref=4 = Use 4 Frames to Predict B- and P-frames. OK Quality
         # partitions=p8x8,b8x8,i8x8,i4x4 = enable optional macroblock types
-        # trellis=1 = Enable rate-distortion optimal quantization for final encode
-        # bframes=2 = maximum 2 B-frames between I- and P-Frames (Better quality)
+        # trellis=2 = Enable rate-distortion optimal quantization for final encode
+        # bframes=3 = maximum 3 B-frames between I- and P-Frames (Better quality)
         # bitrate=${BITRATE} = the target video bitrate
         # direct_pred=auto = Type of motion prediction. spatial and temporal choice for each frame 
-        # deblock=-1,-1 = deblock filter
         # b_adapt=2 = How many b-frames will be used to reach bframes
         # me=umr = Fullpixel motion detection algorithm.
-        # merange=16 = Radius for me=umr
+        # mixed_refs = Ermöglicht für jede 8x8- oder 16x8-Bewegungspartition die unabhängige Wahl eines Referenz-Frames.
+        # cabac = Saves 10%-15% bitrate. A bit slower encoding and decoding.
+        # threads=1 = Use only one CPU. Other setting will reduce compression quality
         # }}}
         XQUANT=`echo "scale=1; 12+6*l(${QUANTIZER})/l(2)" | bc -l`
-        X264OPTS="deblock=-1,-1:subq=8:direct_pred=auto:frameref=5:b_adapt=2:me=umh:merange=16:rc_lookahead=50:bframes=3:trellis=1"
         # From http://www.mplayerhq.hu/DOCS/HTML/en/menc-feat-x264.html
-        # For version (1.0rc2 r26940) TODO Handle this automagicaly!
-        X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:weight_b"
-        X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=2"
+        # For version (1.0rc2 r26940) TODO Handle this automagicaly!  X264OPTS="subq=5:8x8dct:frameref=3:bframes=3:weight_b"
+        X264OPTS="cabac:subq=6:8x8dct:frameref=4:bframes=3:weight_b:mixed_refs:me=umh:partitions=all:direct_pred=auto:trellis=2:b_adapt=2"
+        X264OPTS="${X264OPTS}:crf=${XQUANT}:threads=1"
         CODECOPTS="-ovc x264 -x264encopts ${X264OPTS}"
     fi
 
