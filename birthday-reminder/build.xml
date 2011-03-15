@@ -3,12 +3,19 @@
         Simple Birthday database and reminder tool.
     </description>
     <property name="build.sysclasspath" value="ignore" />
-
     <property name="src" location="src/main/java"/>
     <property name="build" location="build"/>
+    <property name="config" location="config"/>
+
+    <path id="compilecp">
+        <pathelement location="/usr/share/java/log4j-1.2.jar"/>
+    </path>
     <path id="runcp">
         <pathelement location="${build}"/>
+        <pathelement location="${config}"/>
         <pathelement location="/usr/share/java/hsqldb.jar"/>
+        <pathelement location="/usr/share/java/log4j-1.2.jar"/>
+        <pathelement location="/usr/share/java/xercesImpl.jar"/>
     </path>
 
     <target name="init">
@@ -16,11 +23,12 @@
     </target>
 
     <target name="compile" depends="init" description="Compile code">
-        <javac srcdir="${src}" destdir="${build}"/>
+        <javac srcdir="${src}" destdir="${build}" classpathref="compilecp"/>
     </target>
 
     <target name="run" description="Run classes">
-        <java classname="ClientExample" classpathref="runcp"/>
+        <java classname="ClientExample" classpathref="runcp" />
         <java classname="EmbedExample" classpathref="runcp" />
+        <java classname="MemoryExample" classpathref="runcp" />
     </target>
 </project>

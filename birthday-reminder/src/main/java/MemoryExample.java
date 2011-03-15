@@ -3,9 +3,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.apache.log4j.Logger;
 
-public class ClientExample {
+public class MemoryExample {
 
-    private static final Logger LOGGER = Logger.getLogger(ClientExample.class);
+    private static final Logger LOGGER = Logger.getLogger(MemoryExample.class);
 
     public static void main(String... args) {
         try {
@@ -18,10 +18,10 @@ public class ClientExample {
 
         Connection c = null;
         try {
-            c = DriverManager.getConnection("jdbc:hsqldb:hsql://localhost/bdays", "sa", "");
+            c = DriverManager.getConnection("jdbc:hsqldb:mem:bdays", "sa", "");
             if (c != null) {
                 c.close();
-                LOGGER.info("Client/Server Test OK.");
+                LOGGER.info("Memory Test OK.");
             }
         } catch (SQLException e) {
             LOGGER.error("ERROR: failed to connect to server.", e);
