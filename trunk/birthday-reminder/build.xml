@@ -1,0 +1,26 @@
+<project name="BDays" default="compile" basedir=".">
+    <description>
+        Simple Birthday database and reminder tool.
+    </description>
+    <property name="build.sysclasspath" value="ignore" />
+
+    <property name="src" location="src/main/java"/>
+    <property name="build" location="build"/>
+    <path id="runcp">
+        <pathelement location="${build}"/>
+        <pathelement location="/usr/share/java/hsqldb.jar"/>
+    </path>
+
+    <target name="init">
+        <mkdir dir="${build}"/>
+    </target>
+
+    <target name="compile" depends="init" description="Compile code">
+        <javac srcdir="${src}" destdir="${build}"/>
+    </target>
+
+    <target name="run" description="Run classes">
+        <java classname="ClientExample" classpathref="runcp"/>
+        <java classname="EmbedExample" classpathref="runcp" />
+    </target>
+</project>
