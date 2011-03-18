@@ -18,7 +18,7 @@ public class EmbedExample {
 
         Connection c = null;
         try {
-            c = DriverManager.getConnection("jdbc:hsqldb:file:../../data/bdays", "sa", "");
+            c = DriverManager.getConnection("jdbc:hsqldb:file:data/bdays", "sa", "");
             if (c != null) {
                 c.close();
                 LOGGER.info("Embeded Test OK.");
