@@ -1,4 +1,5 @@
-<project name="BDays" default="compile" basedir=".">
+<project name="BDays" default="compile" basedir="."
+    xmlns:cs="antlib:com.puppycrawl.tools.checkstyle">
     <description>
         Simple Birthday database and reminder tool.
     </description>
@@ -6,16 +7,20 @@
     <property name="src" location="src/main/java"/>
     <property name="build" location="build"/>
     <property name="config" location="config"/>
+    <property name="javalib" value="/usr/share/java"/>
 
     <path id="compilecp">
-        <pathelement location="/usr/share/java/log4j-1.2.jar"/>
+        <pathelement location="${javalib}/log4j-1.2.jar"/>
     </path>
     <path id="runcp">
         <pathelement location="${build}"/>
         <pathelement location="${config}"/>
-        <pathelement location="/usr/share/java/hsqldb.jar"/>
-        <pathelement location="/usr/share/java/log4j-1.2.jar"/>
-        <pathelement location="/usr/share/java/xercesImpl.jar"/>
+        <pathelement location="${javalib}/hsqldb.jar"/>
+        <pathelement location="${javalib}/log4j-1.2.jar"/>
+        <pathelement location="${javalib}/xercesImpl.jar"/>
+    </path>
+    <path id="cscp">
+        <pathelement location="${javalib}/commons-beanutils.jar"/>
     </path>
 
     <target name="init">
@@ -26,9 +31,18 @@
         <javac srcdir="${src}" destdir="${build}" classpathref="compilecp"/>
     </target>
 
-    <target name="run" description="Run classes">
+    <target name="run" depends="compile" description="Run classes">
+        <!--
         <java classname="ClientExample" classpathref="runcp" />
+        -->
         <java classname="EmbedExample" classpathref="runcp" />
         <java classname="MemoryExample" classpathref="runcp" />
+    </target>
+
+    <target name="style" description="Run checkstyle in the code">
+        <cs:checkstyle config="${config}/checkstyle.xml">
+            <classpath refid="cscp"/>
+            <fileset dir="${src}" includes="**/*.java"/>
+        </cs:checkstyle>
     </target>
 </project>
