@@ -234,23 +234,23 @@ checkbins() {
 
 usage() {
     echo "Usage:
-    `basename ${0}` <input-file> -x <crop> -t <title> -z <scalefactor> -a <audio id> -d <dvd-dev> -IR
-    Ex.: ${0} -i VR_MOVIE.VRO -S 260000 -E 2:00:40 -s 700 -t \"Movie Name\"
+    `basename ${0}` <input-file> -x <crop> -t <title> -a <audio id> -D <delay> -q <qual> -c <mkv|avi> -z <factor> -w <width> -i -IR -T <dvd-title> -d <dvd-device> -h
+    Ex.: ${0} VR_MOVIE.VRO -t \"Movie Name\" -q 3 -c mkv
     <input-file> - The file to encode. MANDATORY.
     -x <crop>       - Crop with xxx:yyy:aa:bb. If not given, than autocrop.
-    -t <name>       - The name of the Movie.
+    -t <title>      - The name of the Movie.
     -a <audio id>   - The id of the audio track to encode, multiple -a
                       are allowed. The order will be preserved
     -D <delay>      - Audio Delay to use
-    -q              - Quantizer (the lower the better, default 2)
-    -c              - Container type (avi or mkv). By now only with
-    -z              - Scalefactor: scale width with this factor, should be between 0 and 1).
-    -w              - Scalewidth: select this width for the movie. 
+    -q <qual>       - Quantizer (1-31, the lower the better, default 2) 
+    -c <mkv|avi>    - Container type (avi or mkv). By now only with
+    -z <factor>     - Scalefactor: scale width with this factor, should be between 0 and 1).
+    -w <width>      - Scalewidth: select this width for the movie. 
     -i              - Deinterlace
 
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
-    -T <title>      - Title number in DVD for use with -R and -I
+    -T <dvd-title>      - Title number in DVD for use with -R and -I
     -d <dvd-device> - Set the DVD-Device. Used with -I or -R
 
     -h              - This help
