@@ -4,16 +4,22 @@
 
 /* Create working user */
 
+/* Drop Tables */
+DROP TABLE message IF EXISTS;
+DROP TABLE person IF EXISTS;
+DROP TABLE groups IF EXISTS;
+DROP TABLE language IF EXISTS;
+
 /* Create Tables */
 CREATE TABLE language (
     language_id INTEGER IDENTITY,
-    iso_code    VARCHAR(5),
-    name        VARCHAR(40)
+    name        VARCHAR(40) NOT NULL,
+    iso_code    VARCHAR(5)
 );
 
 CREATE TABLE groups (
     group_id    INTEGER IDENTITY,
-    name        VARCHAR(40),
+    name        VARCHAR(40) NOT NULL,
     description VARCHAR(512)
 );
 
@@ -23,8 +29,18 @@ CREATE TABLE person (
     lastname    VARCHAR(80),
     birthdate   DATE,
     email       VARCHAR(128),
-    fk_language INTEGER,
-    fk_group    INTEGER,
-    FOREIGN KEY fk_language ON language(language_id),
-    FOREIGN KEY fk_group ON groups(group_id)
+    language_id INTEGER,
+    group_id    INTEGER,
+    last_greet  DATE,
+    FOREIGN KEY (language_id) REFERENCES language(language_id),
+    FOREIGN KEY (group_id) REFERENCES groups(group_id)
+);
+
+CREATE TABLE message (
+    id          INTEGER IDENTITY,
+    message     VARCHAR(512),
+    language_id INTEGER,
+    group_id    INTEGER,
+    FOREIGN KEY (language_id) REFERENCES language(language_id),
+    FOREIGN KEY (group_id) REFERENCES groups(group_id)
 );
