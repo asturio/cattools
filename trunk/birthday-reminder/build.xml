@@ -45,4 +45,8 @@
             <fileset dir="${src}" includes="**/*.java"/>
         </cs:checkstyle>
     </target>
+
+    <target name="clean" description="Clean up the project build">
+        <delete dir="${build}" />
+    </target>
 </project>
