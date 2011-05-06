@@ -200,6 +200,7 @@ initialize() {
     CROPLOG=${LOGDIR}/01-cropdetect.log
     MPLAYERAUDIOLOG=${LOGDIR}/02-mplayer-audio.log
     AUDIOENCLOG=${LOGDIR}/03-audioenc.log
+    SCALELOG=${LOGDIR}/03a-scalelog.log
     VIDEOLOG=${LOGDIR}/04-video.log
     MERGELOG=${LOGDIR}/05-merge.log
     COMMANDS=${LOGDIR}/commands.txt
@@ -236,7 +237,7 @@ usage() {
     echo "Usage:
     `basename ${0}` <input-file> -x <crop> -t <title> -a <audio id> -D <delay> -q <qual> -c <mkv|avi> -z <factor> -w <width> -i -IR -T <dvd-title> -d <dvd-device> -h
     Ex.: ${0} VR_MOVIE.VRO -t \"Movie Name\" -q 3 -c mkv
-    <input-file> - The file to encode. MANDATORY.
+    <input-file>    - The file to encode. MANDATORY.
     -x <crop>       - Crop with xxx:yyy:aa:bb. If not given, than autocrop.
     -t <title>      - The name of the Movie.
     -a <audio id>   - The id of the audio track to encode, multiple -a
@@ -250,7 +251,7 @@ usage() {
 
     -I              - Gatter DVD Information
     -R              - Rip a DVD-Title.
-    -T <dvd-title>      - Title number in DVD for use with -R and -I
+    -T <dvd-title>  - Title number in DVD for use with -R and -I
     -d <dvd-device> - Set the DVD-Device. Used with -I or -R
 
     -h              - This help
@@ -410,26 +411,45 @@ getAspect() {
 
 setScale() {
     # Scale without a bitrate
-    RAW_W=`grep ID_VIDEO_WIDTH ${IDENTIFY} | cut -f 2 -d =`
-    RAW_H=`grep ID_VIDEO_HEIGHT ${IDENTIFY} | cut -f 2 -d =`
+    # RAW_W=`grep ID_VIDEO_WIDTH ${IDENTIFY} | cut -f 2 -d =`
+    # RAW_H=`grep ID_VIDEO_HEIGHT ${IDENTIFY} | cut -f 2 -d =`
+    ORIGASPECT=`readOpt ORIGASPECT`
+    if [ -z "$ORIGASPECT" ]
+    then
+        MPLAYERSCALE="-nolirc -vo null -nosound -nocache -vf crop=${CROP} -frames 1"
+        CMD="mplayer ${MPLAYERSCALE} ${INPUT}"
+        logAndRun ${CMD} > ${SCALELOG} 2>&1
+        ORIGASPECT=`grep "VO:" ${SCALELOG} | awk '{print $5}'`
+        writeOpt ORIGASPECT "$ORIGASPECT"
+    fi
+    ASPECT_W=`echo ${ORIGASPECT} | cut -f 1 -d x`
+    ASPECT_H=`echo ${ORIGASPECT} | cut -f 2 -d x`
+   
     getAspect
     CROP_W=`echo ${CROP} | cut -f 1 -d :`
     CROP_H=`echo ${CROP} | cut -f 2 -d :`
 
     # ratio = crop_width / (gdouble) crop_height * raw_height / raw_width * anumerator / adenominator;
-    RATIO=`echo "scale=4; ${CROP_W} / ${CROP_H} * ${RAW_H} / ${RAW_W} * ${NUMERATOR} / ${DENOMINATOR}" | bc `
-    echo "Video info: ${RAW_W}x${RAW_H} (${NUMERATOR}:${DENOMINATOR}) crop ${CROP_W}x${CROP_H} ratio: ${RATIO}"
+    #RATIO=`echo "scale=4; ${CROP_W} / ${CROP_H} * ${ASPECT_H} / ${ASPECT_W} * ${NUMERATOR} / ${DENOMINATOR}" | bc `
+    RATIO=`echo "scale=4; ${ASPECT_W} / ${ASPECT_H}" | bc `
+    echo "Video info: ${ASPECT_W}x${ASPECT_H} (${NUMERATOR}:${DENOMINATOR}) crop ${CROP_W}x${CROP_H} ratio: ${RATIO}"
 
-    SCALE_W=${CROP_W}
-    [ -n "${SCALEWIDTH}" ] && [ ${SCALEWIDTH} -lt ${CROP_W} ] && SCALE_W=${SCALEWIDTH}
-    SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
-    echo "Normal scaling to: ${SCALE_W} x ${SCALE_H}"
+    SCALE_W=${ASPECT_W}
+    if [ "x${SCALEWIDTH}" != "x" ]
+    then
+        [ -n "${SCALEWIDTH}" ] && [ ${SCALEWIDTH} -lt ${ASPECT_W} ] && SCALE_W=${SCALEWIDTH}
+        SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
+        echo "Normal scaling to: ${SCALE_W} x ${SCALE_H}"
+    fi
 
-    SCALE_W=`echo ${SCALE_W}*${SCALEFACTOR}/16*16 | bc` 
-    SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
-    echo "Factor (${SCALEFACTOR}) scaling to: ${SCALE_W} x ${SCALE_H}"
+    if [ "x${SCALEFACTOR}" != "x1" ]
+    then
+        SCALE_W=`echo ${SCALE_W}*${SCALEFACTOR}/16*16 | bc` 
+        SCALE_H=`echo "${SCALE_W}/${RATIO}/16*16" | bc`
+        echo "Factor (${SCALEFACTOR}) scaling to: ${SCALE_W} x ${SCALE_H}"
+    fi
 
-    SCALE="${SCALE_W}:${SCALE_H}"
+    [ "x${SCALE_H}" == "x" ] || SCALE="${SCALE_W}:${SCALE_H}"
 }
 
 encodeVideo() {
