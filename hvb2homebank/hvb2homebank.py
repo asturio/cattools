@@ -6,7 +6,7 @@ import sys
 
 program_name = "hvb2homebank: HVB-CSV-File in HomeBank CSV-File converter"
 
-def convertFile(source, target):
+def convertFile(creditcard, source, target):
     "Convert a HVB CSV-File in a HomeBank CSV-File"
     if target == source:
         print "Please give as 2 different file names."
@@ -19,7 +19,10 @@ def convertFile(source, target):
         fdnew = open(target, "w")
         for line in fd:
             line = line.decode("latin1")
-            newLine = convertLine(line)
+            if creditcard:
+                newLine = convertLineCC(line)
+            else:
+                newLine = convertLine(line)
             fdnew.write(newLine + "\n")
     except IOError, message:
         print "IO-Error:", message
@@ -46,6 +49,23 @@ def convertLine(line):
         newLine = newLine.encode("utf-8")
     return newLine
 
+def convertLineCC(line):
+    "Split the fields of the HVB-Creditcard line and rearenge them to match a HomeBank format."
+    splited = line.split(";")
+    if len(splited) != 9:
+        print "Error splitting the line (CC)."
+    # 0-Kontonummer; 1-Kartennummer; 2-Zeitraum; 3-Belegdatum; 4-Eingangstag;
+    # 5-Text/Verwendungszweck; 6-Kurs; 7-Betrag; 8-Waehrung
+    if splited[0] == "Kontonummer":
+        newLine = "date;mode;info;payee;description;amount;category"
+    else:
+        date = transformDate(splited[3])
+        description = splited[1] + ":" + splited[5]
+        amount = parseFloat(splited[7])
+        newLine = "%s;0;;;%s;%.2f;" % (date, description, amount)
+        newLine = newLine.encode("utf-8")
+    return newLine
+
 def parseFloat(floatStr):
     "Convert a String in an float. String is in format 1.234,23"
     floatStr = floatStr.replace(".", "") # Remove thousand-points
@@ -67,6 +87,11 @@ def main():
     source = None
     target = None
     # read parameters 
+    creditcard = False
+    if len(sys.argv) > 3 and sys.argv[1] == '-c':
+        print "CC-Mode"
+        creditcard = True
+        sys.argv.pop(1)
     if len(sys.argv) >= 3:
         source = sys.argv[1]
         target = sys.argv[2]
@@ -77,6 +102,6 @@ def main():
         sys.exit()
 
     # do the job
-    convertFile(source, target)
+    convertFile(creditcard, source, target)
 
 main()
