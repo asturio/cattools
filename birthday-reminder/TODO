@@ -11,3 +11,5 @@ Setup Database Tool
 DB-Configuration
 =================
 - Read server, driver, user, password, and database name from properties.
+
+Must see: http://db.apache.org/ddlutils/
