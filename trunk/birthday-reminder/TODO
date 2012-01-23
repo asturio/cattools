@@ -1,0 +1,13 @@
+Setup Database Tool
+======================
+- Is a connection to the server possible?
+    - Yes: Is there a Database?
+        - Yes: Is the Database in the correct version?
+            - Yes: do nothing.
+            - No: Make Updates till correct version
+        - No: Create the Database in the correct version
+    - No: Error: "Please setup the Database Server
+
+DB-Configuration
+=================
+- Read server, driver, user, password, and database name from properties.
