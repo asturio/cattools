@@ -45,7 +45,7 @@ def convertLine(line):
         date = transformDate(splited[1])
         description = splited[3] + ":" + splited[4] + ":" + splited[5]
         amount = parseFloat(splited[6])
-        newLine = "%s;0;;;%s;%.2f;" % (date, description, amount)
+        newLine = "%s;0;;;%s;%.2f;;" % (date, description, amount)
         newLine = newLine.encode("utf-8")
     return newLine
 
@@ -57,7 +57,7 @@ def convertLineCC(line):
     # 0-Kontonummer; 1-Kartennummer; 2-Zeitraum; 3-Belegdatum; 4-Eingangstag;
     # 5-Text/Verwendungszweck; 6-Kurs; 7-Betrag; 8-Waehrung
     if splited[0] == "Kontonummer":
-        newLine = "date;mode;info;payee;description;amount;category"
+        newLine = "date;paymode;info;payee;memo;amount;category;tags"
     else:
         date = transformDate(splited[3])
         description = splited[1] + ":" + splited[5]
