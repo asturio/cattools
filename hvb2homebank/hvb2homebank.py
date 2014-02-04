@@ -40,7 +40,8 @@ def convertLine(line):
     # 0-Kontonummer;1-Buchungsdatum;2-Valuta;3-Empfaenger 1;
     # 4-Empfaenger 2;5-Verwendungszweck;6-Betrag;7-Waehrung
     if splited[0] == "Kontonummer":
-        newLine = "date;mode;info;payee;description;amount;category"
+        # newLine = "date;mode;info;payee;description;amount;category"
+        newLine = "date;paymode;info;payee;memo;amount;category;tags"
     else:
         date = transformDate(splited[1])
         description = splited[3] + ":" + splited[4] + ":" + splited[5]
@@ -62,7 +63,7 @@ def convertLineCC(line):
         date = transformDate(splited[3])
         description = splited[1] + ":" + splited[5]
         amount = parseFloat(splited[7])
-        newLine = "%s;0;;;%s;%.2f;" % (date, description, amount)
+        newLine = "%s;0;;;%s;%.2f;;" % (date, description, amount)
         newLine = newLine.encode("utf-8")
     return newLine
 
@@ -79,8 +80,9 @@ def transformDate(date):
 
 def usage():
     "Displays the usage of the program"
-    print "Usage: ",sys.argv[0], "<HVB-filename> <NewFilename>"
+    print "Usage: ",sys.argv[0], " [-c] <HVB-filename> <NewFilename>"
     print "  converts the HVB-filename in a Homebank transaction CSV-File"
+    print "  -c Use credit card mode"
 
 def main():
     print program_name
