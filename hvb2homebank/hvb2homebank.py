@@ -53,16 +53,16 @@ def convertLine(line):
 def convertLineCC(line):
     "Split the fields of the HVB-Creditcard line and rearenge them to match a HomeBank format."
     splited = line.split(";")
-    if len(splited) != 9:
+    if len(splited) != 8:
         print "Error splitting the line (CC)."
-    # 0-Kontonummer; 1-Kartennummer; 2-Zeitraum; 3-Belegdatum; 4-Eingangstag;
-    # 5-Text/Verwendungszweck; 6-Kurs; 7-Betrag; 8-Waehrung
-    if splited[0] == "Kontonummer":
+    # 0-Kartennummer; 1-Zeitraum; 2-Belegdatum; 3-Eingangstag; 
+    # 4-Text/Verwendungszweck; 5-Kurs; 6-Betrag; 7-Waehrung
+    if splited[0] == "Kartennummer":
         newLine = "date;paymode;info;payee;memo;amount;category;tags"
     else:
-        date = transformDate(splited[3])
-        description = splited[1] + ":" + splited[5]
-        amount = parseFloat(splited[7])
+        date = transformDate(splited[2])
+        description = splited[0] + ":" + splited[4]
+        amount = parseFloat(splited[6])
         newLine = "%s;0;;;%s;%.2f;;" % (date, description, amount)
         newLine = newLine.encode("utf-8")
     return newLine
