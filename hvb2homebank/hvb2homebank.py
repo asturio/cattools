@@ -18,8 +18,6 @@ def convertFile(creditcard, source, target):
         fd = open(source, "r", encoding="utf-16le")
         fdnew = open(target, "w", encoding="utf-8")
         for line in fd:
-            # line = line.decode("utf-8")
-            # line = line.decode("utf-16")
             if creditcard:
                 newLine = convertLineCC(line)
             else:
@@ -41,7 +39,6 @@ def convertLine(line):
     # 0-Kontonummer;1-Buchungsdatum;2-Valuta;3-Empfaenger 1;
     # 4-Empfaenger 2;5-Verwendungszweck;6-Betrag;7-Waehrung
     if splited[0] == "Kontonummer":
-        # newLine = "date;mode;info;payee;description;amount;category"
         newLine = "date;paymode;info;payee;memo;amount;category;tags"
     else:
         date = transformDate(splited[1])
@@ -52,7 +49,6 @@ def convertLine(line):
             description += splited[i]
         amount = parseFloat(splited[6])
         newLine = "%s;0;;;%s;%.2f;;" % (date, description, amount)
-        # newLine = newLine.encode("utf-8")
     return newLine
 
 def convertLineCC(line):
@@ -69,7 +65,6 @@ def convertLineCC(line):
         description = splited[0] + ":" + splited[4]
         amount = parseFloat(splited[6])
         newLine = "%s;0;;;%s;%.2f;;" % (date, description, amount)
-        # newLine = newLine.encode("utf-8")
     return newLine
 
 def parseFloat(floatStr):
