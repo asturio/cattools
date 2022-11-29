@@ -94,11 +94,17 @@ echo "Using ${VCODEC}-${ACODEC}${SUFFIX}"
 NEWFILE=${FILE%.*}-${VCODEC}-${ACODEC}${SUFFIX}.mkv
 NEWSHORT=`basename "${NEWFILE}"`
 
-notify-send Reduce-Size "Converting '${FILESHORT}' into '${NEWSHORT}'"
+FEEDBACK=echo
+if (which notify-send > /dev/null)
+then
+    FEEDBACK=notify-send
+fi
+
+${FEEDBACK} Reduce-Size "Converting '${FILESHORT}' into '${NEWSHORT}'"
 
 if [ -f "${NEWFILE}" ]
 then
-    notify-send Reduce-Size "${NEWFILE} exists already. Doing nothing."
+    ${FEEDBACK} Reduce-Size "${NEWFILE} exists already. Doing nothing."
     exit 1
 fi
 
@@ -112,8 +118,8 @@ ffmpeg -hide_banner -v info -i "${FILE}" -c:a ${ACODEC} -c:v ${VCODEC} ${VFILTER
 RC=${?}
 if [ ${RC} -ne 0 ]
 then
-    notify-send Reduce-Size "Error reducing video."
+    ${FEEDBACK} Reduce-Size "Error reducing video."
     exit 1
 fi
 
-notify-send Reduce-Size "'${NEWSHORT}' done"
+${FEEDBACK} Reduce-Size "'${NEWSHORT}' done"
