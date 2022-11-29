@@ -8,7 +8,7 @@ function find_encoder() {
             echo $i
             return 0
         fi
-        if (ffmpeg -encoders 2> /dev/null| grep -i "\<$i\>" > /dev/null)
+        if (ffmpeg -encoders 2> /dev/null| grep -i "^ ...[^X].. \<$i\>" > /dev/null)
         then
             echo $i
             return 0
